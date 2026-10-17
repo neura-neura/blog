@@ -3,7 +3,7 @@ html{font-size:var(--ui-font,15px);background:var(--bg,#fff);color:var(--ink,#0f
 body,dialog{background:var(--bg,#fff);color:var(--ink,#0f1419)}
 a,.text-action,button.active{color:var(--link,var(--blue))}
 .primary,#toast{background:var(--blue);color:var(--on-accent)}
-.primary:hover{background:var(--blue);filter:brightness(.94)}
+.primary:hover{background:var(--accent-hover);color:var(--on-accent)}
 button.active,.tiptap .selectedCell{background:var(--accent-soft)}
 .new-post{color:var(--bg);background:var(--ink)}
 .new-post:hover{background:var(--ink);opacity:.85}

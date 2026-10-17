@@ -10,6 +10,7 @@ export const COLORS = [
 const rgb = hex => hex.slice(1).match(/../g).map(n => parseInt(n, 16));
 const hex = channels => '#' + channels.map(n => Math.round(n).toString(16).padStart(2, '0')).join('');
 export const PALETTE = [...COLORS, ...COLORS.map(c => ({id: `${c.id}-pastel`, name: `${c.name} pastel`, hex: hex(rgb(c.hex).map(n => n * .4 + 255 * .6))}))];
+export const accentForeground = color => color.endsWith('-pastel') ? '#0f1419' : '#ffffff';
 export const FONT_SIZES = [13, 14, 15, 17, 18];
 export const DEFAULT_APPEARANCE = { color: 'blue', size: 2, background: 'light', system: false };
 export function normalizeAppearance(value = {}) {
@@ -28,9 +29,10 @@ export function appearanceTokens(value, systemDark = false) {
   const dark = prefs.system ? systemDark : prefs.background === 'dark';
   const bg = dark ? '#000000' : '#ffffff';
   const accent = PALETTE.find(c => c.id === prefs.color).hex;
+  const pastel = prefs.color.endsWith('-pastel');
   let link = accent;
-  for(let i=0; contrast(link,bg)<4.5 && i<30; i++) link = hex(rgb(link).map(n => dark ? n + (255-n)*.12 : n*.88));
-  return { '--bg': bg, '--ink': dark ? '#e7e9ea' : '#0f1419', '--muted': dark ? '#8b98a5' : '#536471', '--line': dark ? '#2f3336' : '#eff3f4', '--border': dark ? '#536471' : '#cfd9de', '--hover': dark ? '#16181c' : '#f7f9f9', '--surface': dark ? '#202327' : '#eff3f4', '--blue': accent, '--ring': link, '--link': link, '--on-accent': contrast(accent,'#ffffff') >= 4.5 ? '#ffffff' : '#0f1419', '--accent-soft': hex(rgb(accent).map((n,i) => n*.15 + rgb(bg)[i]*.85)), '--font-scale': String(FONT_SIZES[prefs.size]/15), '--ui-font': `${FONT_SIZES[prefs.size]}px`, 'color-scheme': dark ? 'dark' : 'light' };
+  for(let i=0; pastel && contrast(link,bg)<4.5 && i<30; i++) link = hex(rgb(link).map(n => dark ? n + (255-n)*.12 : n*.88));
+  return { '--bg': bg, '--ink': dark ? '#e7e9ea' : '#0f1419', '--muted': dark ? '#8b98a5' : '#536471', '--line': dark ? '#2f3336' : '#eff3f4', '--border': dark ? '#536471' : '#cfd9de', '--hover': dark ? '#16181c' : '#f7f9f9', '--surface': dark ? '#202327' : '#eff3f4', '--blue': accent, '--ring': link, '--link': link, '--on-accent': accentForeground(prefs.color), '--accent-hover': hex(rgb(accent).map(n => n*.9)), '--accent-soft': hex(rgb(accent).map((n,i) => n*.15 + rgb(bg)[i]*.85)), '--font-scale': String(FONT_SIZES[prefs.size]/15), '--ui-font': `${FONT_SIZES[prefs.size]}px`, 'color-scheme': dark ? 'dark' : 'light' };
 }
 export function initAppearance(win = window) {
   let prefs;
