@@ -31,7 +31,12 @@ test('renders published posts safely and emits linked public outputs', async (t)
   const sitemap = await readFile(path.join(outDir, 'sitemap.xml'), 'utf8');
   const publicPosts = JSON.parse(await readFile(path.join(outDir, 'posts.json'), 'utf8'));
   assert.match(article, /Hello &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
-  assert.doesNotMatch(article, /<script|onclick=|javascript:/i);
+  const trustedScript = '<script type="module" src="../reader-appearance.js"></script>';
+  assert.ok(article.includes(trustedScript));
+  assert.doesNotMatch(article.replace(trustedScript, ''), /<script|onclick=|javascript:/i);
+  assert.match(index, /src=".\/reader-appearance.js"/);
+  assert.match(await readFile(path.join(outDir, 'reader-appearance.js'), 'utf8'), /initAppearance/);
+  assert.match(await readFile(path.join(outDir, 'appearance.css'), 'utf8'), /--font-scale/);
   assert.match(article, /href="\.\.\/index\.html"/);
   assert.match(article, /href="\.\.\/editor\.html"/);
   assert.match(index, /posts\/hello-world\.html/);
