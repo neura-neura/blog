@@ -45,7 +45,7 @@ function renderCover(){const cover=$('#cover');cover.style.backgroundImage=curre
 function resizeTitle(){$('#article-title').style.height='auto';$('#article-title').style.height=$('#article-title').scrollHeight+'px';}
 function modal(title,body){$('#modal-title').textContent=title;$('#modal-body').innerHTML=body;$('#modal').showModal();refreshIcons();}
 function close(){$('#modal').close();}
-function form(title,fields,submit,onSubmit){modal(title,`<form id="dialog-form">${fields}<button class="primary wide" type="submit">${submit}</button></form>`);$('#dialog-form').onsubmit=async e=>{e.preventDefault();try{await onSubmit(new FormData(e.target));}catch(error){toast(error.message);}};}
+function form(title,fields,submit,onSubmit){modal(title,`<form id="dialog-form">${fields}<p class="form-error" role="alert" hidden></p><button class="primary wide" type="submit">${submit}</button></form>`);$('#dialog-form').onsubmit=async e=>{e.preventDefault();const errorBox=e.target.querySelector('.form-error');errorBox.hidden=true;try{await onSubmit(new FormData(e.target));}catch(error){errorBox.textContent=error.message;errorBox.hidden=false;toast(error.message);}};}
 const field=(label,name,value='',type='text',extra='')=>`<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" ${extra}></label>`;
 function urlForm(title,callback,kind='URL'){form(title,field(kind,'url','','url','required placeholder="https://…"')+field('Texto alternativo / descripción','alt'),'Insertar',data=>{const url=data.get('url');if(!/^https?:\/\//i.test(url))throw Error('Usa un enlace HTTPS o HTTP válido.');callback(url,data.get('alt'));close();});}
 function syncSource(){if(sourceMode){editor.commands.setContent(markdownWithMathBlocks($('#markdown-source').value),{contentType:'markdown',emitUpdate:false});current.html=editor.getHTML();current.markdown=editor.getMarkdown();}else{current.html=editor.getHTML();current.markdown=editor.getMarkdown();}}
@@ -70,3 +70,4 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){
 window.addEventListener('beforeunload',()=>{syncSource();save();});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();}});
 load(current);refreshIcons();
+window.addEventListener('resize',resizeTitle);

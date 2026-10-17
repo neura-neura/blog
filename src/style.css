@@ -2,3 +2,5 @@
 
 .margin-note{display:none}.toolbar select{max-width:106px}.tiptap .tableWrapper{overflow-x:auto}
  .toolbar>*{flex-shrink:0}.toolbar .insert{min-width:62px}
+ .toolbar{scrollbar-width:none}.toolbar::-webkit-scrollbar{display:none}.katex-display{overflow:auto}.save-state.is-published .badge{background:#e1f4e8;color:#16813b}
+ .form-error{color:#c31326;padding:12px;background:#fff0f1;border-radius:8px}
