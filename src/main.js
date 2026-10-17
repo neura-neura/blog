@@ -78,3 +78,11 @@ window.addEventListener('beforeunload',()=>{syncSource();save();});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();}});
 load(current);refreshIcons();
 window.addEventListener('resize',resizeTitle);
+// Column and focus-mode changes can resize the title without a window resize.
+let titleWidth;
+new ResizeObserver(([entry])=>{
+  if(entry.contentRect.width!==titleWidth){
+    titleWidth=entry.contentRect.width;
+    resizeTitle();
+  }
+}).observe($('#article-title'));
