@@ -4,3 +4,4 @@
  .toolbar>*{flex-shrink:0}.toolbar .insert{min-width:62px}
  .toolbar{scrollbar-width:none}.toolbar::-webkit-scrollbar{display:none}.katex-display{overflow:auto}.save-state.is-published .badge{background:#e1f4e8;color:#16813b}
  .form-error{color:#c31326;padding:12px;background:#fff0f1;border-radius:8px}
+ .author-footer{margin:56px 48px 0;border-top:1px solid var(--line);padding-top:40px}.author-footer-link{display:flex;gap:12px;align-items:flex-start;color:var(--ink);font-size:14px;line-height:1.5}.author-footer-link:hover{text-decoration:none}.author-footer-link>span:last-child{display:flex;flex-direction:column}.author-footer-link .avatar{flex-shrink:0}.author-footer-link:hover strong{text-decoration:underline}#footer-bio{margin-top:4px}@media(max-width:640px){.author-footer{margin:32px 24px 0;padding-top:28px}}

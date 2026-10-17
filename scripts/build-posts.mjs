@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import sanitizeHtml from 'sanitize-html';
 import katex from 'katex';
 import { marked } from 'marked';
+import { readingStats } from '../src/reading-stats.js';
 
 const DEFAULT_SITE_URL = 'https://neura-neura.github.io/blog-studio';
 const allowedTags = [...sanitizeHtml.defaults.allowedTags, 'h1', 'img', 'video', 'audio', 'source', 'input',
@@ -90,11 +91,13 @@ function renderArticle(post, canonical) {
   const cover = coverUrl ? `<img class="cover" src="${escapeHtml(coverUrl)}" alt="${title}" loading="lazy">` : '';
   const tags = Array.isArray(post.tags) ? post.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('') : '';
   const body = renderBody(post);
+  const plainText = decodeAttribute(sanitizeHtml(String(post.html || marked.parse(post.markdown || '')).replace(/<[^>]+>/g, ' '), {allowedTags: [], allowedAttributes: {}}));
+  const { minutes } = readingStats(plainText);
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} — Artículos</title><meta name="description" content="${excerpt}"><link rel="canonical" href="${escapeHtml(canonical)}">
+<title>${title} - Artículos</title><meta name="description" content="${excerpt}"><meta name="reading-time" content="${minutes}"><link rel="canonical" href="${escapeHtml(canonical)}">
 <style>body{margin:0;color:#171717;background:#fff;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:720px;margin:0 auto;padding:32px 24px 80px}header{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:18px}a{color:inherit}header a{text-decoration:none;font-weight:700}.back{color:#666}article{padding-top:46px}h1{font-size:36px;line-height:1.15;letter-spacing:-.05em;margin:12px 0 20px}.meta{color:#777;font-size:14px}.excerpt{font-size:1.2rem;color:#555}.cover{width:100%;height:auto;border-radius:12px;margin:22px 0}article img:not(.cover){max-width:100%;height:auto}article a{text-underline-offset:3px}article h2,article h3{line-height:1.25;letter-spacing:-.03em;margin-top:1.7em}article pre,article table{display:block;max-width:100%;overflow-x:auto}article pre{padding:16px;background:#f5f5f5;border-radius:8px;font-size:14px}article blockquote{border-left:3px solid #ddd;margin-left:0;padding-left:20px;color:#666}article video{max-width:100%;height:auto}article audio{max-width:100%}.katex-display{text-align:center;overflow-x:auto;padding:8px 0}.tags{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0}.tags span{background:#f3f3f3;border-radius:99px;padding:3px 10px;font-size:13px;color:#555}footer{border-top:1px solid #eee;margin-top:56px;padding-top:20px;color:#777;font-size:14px}</style></head>
-<body><div class="wrap"><header><a href="../index.html">Artículos</a><a class="back" href="../index.html">Todos los artículos</a></header><article>${cover}<p class="meta">${date}${author ? ` · ${author}` : ''}</p><h1>${title}</h1>${excerpt ? `<p class="excerpt">${excerpt}</p>` : ''}<div class="tags">${tags}</div><main>${body}</main></article><footer><a href="../editor.html">Escribir</a> · <a href="../feed.xml">RSS</a></footer></div></body></html>`;
+<body><div class="wrap"><header><a href="../index.html">Artículos</a><a class="back" href="../index.html">Todos los artículos</a></header><article>${cover}<p class="meta">${minutes} min de lectura &middot; ${date}${author ? ` · ${author}` : ''}</p><h1>${title}</h1>${excerpt ? `<p class="excerpt">${excerpt}</p>` : ''}<div class="tags">${tags}</div><main>${body}</main></article><footer><a class="author-card" href="../index.html"><strong>${author}</strong></a><p>${escapeHtml(post.authorBio||'')}</p><a href="../editor.html">Escribir</a> · <a href="../feed.xml">RSS</a></footer></div></body></html>`;
 }
 
 function renderIndex(posts) {
