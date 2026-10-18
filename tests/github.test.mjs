@@ -29,7 +29,7 @@ test('profile publication creates or updates one shared file and excludes connec
     assert.equal(body.sha,exists?'old-profile':undefined);
     const profile=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(body.content),c=>c.charCodeAt(0))));
     assert.equal(profile.author,'林夏');assert.equal(profile.handle,'writer');
-    assert.deepEqual(Object.keys(profile).sort(),['author','banner','bio','handle','updatedAt']);
+    assert.deepEqual(Object.keys(profile).sort(),['author','avatar','banner','bio','handle','updatedAt','website']);
     assert.match(calls[1].url,/\/contents\/blog-profile.json$/);
   }
 });

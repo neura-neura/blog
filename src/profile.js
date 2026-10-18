@@ -7,14 +7,20 @@ export function profileBannerUrl(value) {
 }
 export function normalizeProfile(value = {}) {
   const text = (key, limit) => typeof value?.[key] === 'string' ? value[key].trim().slice(0, limit) : '';
-  return { author: text('author', 100) || 'Mi blog', bio: text('bio', 500), handle: text('handle', 100).replace(/^@+/, ''), banner:profileBannerUrl(value?.banner), updatedAt: text('updatedAt', 40) };
+  let website='';try{const url=new URL(text('website',300));if(['https:','http:'].includes(url.protocol))website=url.href;}catch{ /* Empty or invalid public links are omitted. */ }
+  return { author: text('author', 100) || 'Mi blog', bio: text('bio', 500), handle: text('handle', 100).replace(/^@+/, ''), banner:profileBannerUrl(value?.banner), avatar:profileBannerUrl(value?.avatar), website, updatedAt: text('updatedAt', 40) };
 }
 
 export function applyProfileDOM(doc, value) {
   const profile = normalizeProfile(value);
   for (const node of doc.querySelectorAll('[data-profile]')) {
     const field = node.dataset.profile;
-    node.textContent = field === 'initial' ? Array.from(profile.author)[0] : profile[field] || '';
+    if(field==='initial'&&profile.avatar){const image=doc.createElement('img');image.src=profile.avatar;image.alt='';node.replaceChildren(image);}
+    else node.textContent = field === 'initial' ? Array.from(profile.author)[0] : profile[field] || '';
+  }
+  for(const node of doc.querySelectorAll('[data-profile-website]')){
+    node.hidden=!profile.website;
+    const link=node.querySelector('a');if(link){link.href=profile.website;link.textContent=profile.website.replace(/^https?:\/\//,'').replace(/\/$/,'');}
   }
   for(const node of doc.querySelectorAll('[data-profile-banner]')){
     if(!profile.banner){node.replaceChildren();continue;}

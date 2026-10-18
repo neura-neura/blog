@@ -10,7 +10,7 @@ function browser() {
   return {win,storage,listeners,nodes};
 }
 test('profile allows only public fields and normalizes names and handles', () => {
-  assert.deepEqual(normalizeProfile({author:'  Zoë 林 ',handle:'@@writer',bio:' ',owner:'private-owner',token:'secret'}),{author:'Zoë 林',handle:'writer',bio:'',banner:'',updatedAt:''});
+  assert.deepEqual(normalizeProfile({author:'  Zoë 林 ',handle:'@@writer',bio:' ',owner:'private-owner',token:'secret'}),{author:'Zoë 林',handle:'writer',bio:'',banner:'',avatar:'',website:'',updatedAt:''});
   assert.equal(normalizeProfile(null).author,'Mi blog');
 });
 
@@ -39,6 +39,29 @@ test('profile changes replace or remove only the blog banner',()=>{
   assert.equal(banner.children[0].src,'https://example.test/banner.webp');
   assert.equal(banner.children[0].width/banner.children[0].height,3);
   applyProfileDOM(doc,{author:'Ada',banner:''});assert.equal(banner.children.length,0);
+});
+
+test('profile avatar persists independently from the banner and rejects unsafe files',async()=>{
+  const b=browser();b.win.document.createElement=()=>({});
+  for(const node of b.nodes)node.replaceChildren=function(...children){this.children=children;};
+  const controller=initProfile({win:b.win});await controller.ready;
+  const image='data:image/webp;base64,UklGRg==';
+  controller.set({author:'Ada',avatar:image,banner:'https://example.test/banner.webp',website:'https://example.test/about'});
+  assert.equal(b.nodes.at(-1).children[0].src,image);
+  const restored=initProfile({win:b.win});await restored.ready;
+  assert.equal(restored.get().avatar,image);assert.equal(restored.get().website,'https://example.test/about');
+  controller.set({...controller.get(),avatar:''});
+  assert.equal(b.nodes.at(-1).textContent,'A');assert.equal(controller.get().banner,'https://example.test/banner.webp');
+  assert.equal(normalizeProfile({avatar:'data:image/svg+xml;base64,PHN2Zz4=',website:'javascript:alert(1)'}).avatar,'');
+  assert.equal(normalizeProfile({website:'javascript:alert(1)'}).website,'');
+});
+
+test('public website updates its link and disappears when removed',()=>{
+  const link={};const container={querySelector:()=>link};
+  const doc={querySelectorAll:selector=>selector==='[data-profile-website]'?[container]:[],querySelector:()=>null};
+  applyProfileDOM(doc,{author:'Ada',website:'https://example.test/about'});
+  assert.equal(link.href,'https://example.test/about');assert.equal(link.textContent,'example.test/about');assert.equal(container.hidden,false);
+  applyProfileDOM(doc,{author:'Ada',website:''});assert.equal(container.hidden,true);
 });
 test('profile updates every bound field, persists and synchronizes other open tabs', async () => {
   const b=browser();

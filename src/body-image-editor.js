@@ -1,5 +1,6 @@
 import { cropGeometry } from './cover-crop.js';
 import './body-image.css';
+import { mediaIcon } from './media-icons.js';
 
 export function openBodyImageEditor(editor, getPos, mode = 'crop') {
   const pos = getPos();const node = editor.state.doc.nodeAt(pos);
@@ -32,7 +33,7 @@ export function openBodyImageEditor(editor, getPos, mode = 'crop') {
   }
   top.append(save);save.disabled = true;
   const tabs = document.createElement('div');tabs.className = 'body-media-tabs';tabs.setAttribute('role', 'tablist');tabs.setAttribute('aria-label', 'Editar imagen');
-  const cropTab = document.createElement('button');cropTab.type = 'button';cropTab.textContent = 'Recortar';cropTab.setAttribute('role', 'tab');
+  const cropTab = document.createElement('button');cropTab.type = 'button';cropTab.innerHTML = mediaIcon('crop');cropTab.setAttribute('aria-label', 'Recortar imagen');cropTab.title = 'Recortar imagen';cropTab.setAttribute('role', 'tab');
   const altTab = document.createElement('button');altTab.type = 'button';altTab.textContent = 'ALT';altTab.setAttribute('role', 'tab');altTab.setAttribute('aria-label', 'Editar descripción de imagen');tabs.append(cropTab, altTab);
   const cropPanel = document.createElement('div');cropPanel.className = 'body-crop-panel';
   const stage = document.createElement('div');stage.className = 'body-crop-stage';stage.tabIndex = 0;stage.setAttribute('role', 'group');stage.setAttribute('aria-label', 'Encuadre de imagen. Arrastra o usa las flechas para moverla.');
@@ -41,13 +42,17 @@ export function openBodyImageEditor(editor, getPos, mode = 'crop') {
   const controls = document.createElement('div');controls.className = 'body-crop-controls';
   const ratios = document.createElement('div');ratios.className = 'body-crop-ratios';
   const range = document.createElement('input');range.type = 'range';range.min = '1';range.max = '3';range.step = '.01';range.value = '1';range.setAttribute('aria-label', 'Zoom de imagen');
-  controls.append(ratios, range);cropPanel.append(stage, controls);
+  const zoomButton = (name, text, step) => { const button=document.createElement('button');button.type='button';button.innerHTML=mediaIcon(name);button.title=text;button.setAttribute('aria-label',text);button.onclick=()=>{range.value=String(Number(range.value)+step);range.dispatchEvent(new Event('input'));};return button; };
+  controls.append(ratios, zoomButton('zoomOut','Alejar imagen',-.1), range, zoomButton('zoomIn','Acercar imagen',.1));cropPanel.append(stage, controls);
   const altPanel = document.createElement('div');altPanel.className = 'body-alt-panel';altPanel.hidden = true;
-  const label = document.createElement('label');label.textContent = 'Descripción';const alt = document.createElement('textarea');alt.maxLength = 1000;alt.value = attrs.alt || '';alt.setAttribute('aria-label', 'Texto alternativo');label.append(alt);
-  const hint = document.createElement('p');hint.className = 'hint';hint.textContent = 'Describe lo que aparece en la imagen para las personas que usan lectores de pantalla. El pie de imagen es independiente de esta descripción.';
-  const count = document.createElement('p');count.className = 'hint';alt.oninput = () => { count.textContent = `${alt.value.length} / 1000`; };alt.oninput();altPanel.append(label, count, hint);
+  const altPreview = document.createElement('div');altPreview.className='body-alt-preview';const previewImage=document.createElement('img');previewImage.src=attrs.src;previewImage.alt=attrs.alt||'';altPreview.append(previewImage);
+  const label = document.createElement('label');label.className='body-alt-field';const caption=document.createElement('span');caption.textContent='Descripción';const alt = document.createElement('textarea');alt.maxLength = 1000;alt.value = attrs.alt || '';alt.setAttribute('aria-label', 'Texto alternativo');
+  const count = document.createElement('span');count.className = 'body-alt-count';alt.oninput = () => { count.textContent = `${alt.value.length} / 1,000`; };alt.oninput();label.append(caption,count,alt);
+  const help=document.createElement('button');help.type='button';help.className='body-alt-help';help.textContent='¿Qué es el texto alternativo?';
+  help.onclick=()=>{const info=document.createElement('dialog');info.className='body-alt-info';const title=document.createElement('h2');title.textContent='Añade descripciones';const text=document.createElement('p');text.textContent='El texto alternativo permite que las personas ciegas o con baja visión conozcan el contenido de tus imágenes mediante un lector de pantalla. Describe de forma breve y precisa lo que aparece y el contexto que aporta al artículo. Es diferente del pie de imagen, que pueden leer todos los visitantes.';const done=document.createElement('button');done.type='button';done.className='body-media-save';done.textContent='Entendido';done.onclick=()=>info.close();info.append(title,text,done);document.body.append(info);info.addEventListener('close',()=>info.remove(),{once:true});info.showModal();};
+  altPanel.append(altPreview,label,help);
   body.append(tabs, cropPanel, altPanel);
-  function tab(active) { cropPanel.hidden = !active;altPanel.hidden = active;cropTab.setAttribute('aria-selected', String(active));altTab.setAttribute('aria-selected', String(!active));heading.textContent = active ? 'Recortar imagen' : 'Editar descripción de imagen';if (active) render(); }
+  function tab(active) { cropPanel.hidden = !active;altPanel.hidden = active;cropTab.setAttribute('aria-selected', String(active));altTab.setAttribute('aria-selected', String(!active));heading.textContent = active ? 'Recortar imagen' : 'Editar descripción de imagen';if (active) render();else alt.focus(); }
   cropTab.onclick = () => tab(true);altTab.onclick = () => tab(false);
   let state = { x: .5, y: .5, zoom: 1, ratio: 'original' }, dirty = false, ready = false, rect;
   try { state = { ...state, ...JSON.parse(attrs.crop || '{}') }; } catch { /* Older images start with their natural aspect ratio. */ }
@@ -63,7 +68,7 @@ export function openBodyImageEditor(editor, getPos, mode = 'crop') {
     range.setAttribute('aria-valuetext', `${Math.round(state.zoom * 100)} %`);
   }
   for (const [value, text] of [['original', 'Original'], ['wide', 'Panorámico'], ['square', 'Cuadrado']]) {
-    const button = document.createElement('button');button.type = 'button';button.textContent = text;button.dataset.ratio = value;button.setAttribute('aria-label', `Proporción: ${text}`);
+    const button = document.createElement('button');button.type = 'button';button.innerHTML = mediaIcon(value);button.title=text;button.dataset.ratio = value;button.setAttribute('aria-label', `Proporción: ${text}`);
     button.onclick = () => { state.ratio = value;state.x = state.y = .5;state.zoom = 1;range.value = '1';dirty = true;selectRatio();render(); };ratios.append(button);
   }
   function selectRatio() { for (const button of ratios.children) button.setAttribute('aria-pressed', String(button.dataset.ratio === state.ratio)); }

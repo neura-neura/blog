@@ -40,7 +40,7 @@ test('one public profile overrides stale authors throughout existing posts, home
     assert.doesNotMatch(html,/Autor anterior|Otro anterior|Bio anterior|private-secret|private-repo/);
   }
   const publicProfile=JSON.parse(await readFile(path.join(outDir,'profile.json'),'utf8'));
-  assert.deepEqual(publicProfile,{author:profile.author,bio:profile.bio,handle:'nuevo',banner:'',updatedAt:profile.updatedAt});
+  assert.deepEqual(publicProfile,{author:profile.author,bio:profile.bio,handle:'nuevo',banner:'',avatar:'',website:'',updatedAt:profile.updatedAt});
   const posts=JSON.parse(await readFile(path.join(outDir,'posts.json'),'utf8'));
   assert.ok(posts.every(p=>p.author===profile.author&&p.authorBio===profile.bio&&p.authorHandle==='nuevo'));
   const reader=await readFile(path.join(outDir,'reader-appearance.js'),'utf8');
@@ -61,6 +61,18 @@ test('blog banner is independent from article covers and stays neutral unless co
   const article=await readFile(path.join(configured.outDir,'posts/hello-world.html'),'utf8');
   assert.match(article,/src="https:\/\/example.test\/article.webp"/);
   assert.doesNotMatch(article,/src="https:\/\/example.test\/profile.webp"/);
+});
+
+test('profile avatar and website render on home, cards and article footer before JavaScript',async t=>{
+  const avatar='https://example.test/avatar.webp',banner='https://example.test/banner.webp';
+  const {outDir}=await fixture(t,{one:post()},{author:'Ada',avatar,banner,website:'https://example.test/about'});
+  const index=await readFile(path.join(outDir,'index.html'),'utf8');
+  const article=await readFile(path.join(outDir,'posts/hello-world.html'),'utf8');
+  assert.equal((index.match(/src="https:\/\/example.test\/avatar.webp"/g)||[]).length,2);
+  assert.match(index,/data-profile-banner><img src="https:\/\/example.test\/banner.webp"/);
+  assert.match(article,/class="reader-avatar"[^>]*><img src="https:\/\/example.test\/avatar.webp"/);
+  for(const page of [index,article])assert.match(page,/href="https:\/\/example.test\/about" target="_blank" rel="noopener noreferrer"/);
+  assert.match(article,/<main class="prose">/);
 });
 
 test('renders published posts safely and emits linked public outputs', async (t) => {
