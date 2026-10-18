@@ -106,3 +106,9 @@ dialog .crop-zoom input[type=range]{width:70%;height:5px;padding:0;border:0;curs
 dialog .crop-zoom input[type=range]{appearance:none;background:var(--accent-soft);border-radius:99px}
 .crop-zoom input::-webkit-slider-thumb{appearance:none;background:var(--blue);height:16px;width:16px;border-radius:50%}
 .crop-zoom input::-moz-range-thumb{background:var(--blue);border:0;height:16px;width:16px;border-radius:50%}
+
+.connection-status{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;padding:16px;margin:20px 0;color:var(--ink)}
+.connection-status strong{font-size:15px;line-height:20px}.connection-status p{font-size:13px;line-height:20px;color:var(--muted);margin:4px 0 0}
+.connection-status-icon{display:grid;place-items:center;flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--hover);color:var(--muted)}
+.connection-status-icon svg{width:18px;height:18px}.connection-status.is-connected .connection-status-icon{color:var(--link);background:var(--accent-soft)}
+.rail nav [data-action=settings]{position:relative}.rail nav [data-connected=true]:after{content:'';position:absolute;right:7px;bottom:7px;width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 2px var(--bg)}

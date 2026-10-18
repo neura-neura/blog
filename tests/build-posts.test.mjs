@@ -5,12 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildPosts } from '../scripts/build-posts.mjs';
 
-async function fixture(t, entries) {
+async function fixture(t, entries, profile) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'build-posts-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const postsDir = path.join(root, 'posts');
   const outDir = path.join(root, 'dist');
   await mkdir(postsDir);
+  if(profile)await writeFile(path.join(root,'blog-profile.json'),JSON.stringify(profile));
   for (const [name, data] of Object.entries(entries)) await writeFile(path.join(postsDir, `${name}.json`), JSON.stringify(data));
   await buildPosts({ postsDir, outDir, siteUrl: 'https://example.test/blog' });
   return { postsDir, outDir };
@@ -21,6 +22,22 @@ const post = (extra = {}) => ({
   html: '<h1>Hello</h1><script>alert(1)</script><p onclick="alert(1)">safe <a href="javascript:alert(1)">link</a></p>',
   cover: '', author: 'Ada', excerpt: 'A short note', tags: ['writing'], publishedAt: '2025-01-02T00:00:00Z',
   updatedAt: '2025-01-03T00:00:00Z', status: 'published', ...extra,
+});
+
+test('one public profile overrides stale authors throughout existing posts, home and RSS', async t => {
+  const profile={author:'Nuevo <nombre>',bio:'Presentación & ideas',handle:'@nuevo',updatedAt:'2026-01-01T00:00:00Z',token:'private-secret',repo:'private-repo'};
+  const {outDir}=await fixture(t,{one:post({author:'Autor anterior',authorBio:'Bio anterior'}),two:post({id:'two',slug:'second',author:'Otro anterior'})},profile);
+  for(const file of ['index.html','posts/hello-world.html','posts/second.html','feed.xml']){
+    const html=await readFile(path.join(outDir,file),'utf8');
+    assert.match(html,/Nuevo &lt;nombre&gt;/);assert.match(html,/Presentación &amp; ideas/);
+    assert.doesNotMatch(html,/Autor anterior|Otro anterior|Bio anterior|private-secret|private-repo/);
+  }
+  const publicProfile=JSON.parse(await readFile(path.join(outDir,'profile.json'),'utf8'));
+  assert.deepEqual(publicProfile,{author:profile.author,bio:profile.bio,handle:'nuevo',updatedAt:profile.updatedAt});
+  const posts=JSON.parse(await readFile(path.join(outDir,'posts.json'),'utf8'));
+  assert.ok(posts.every(p=>p.author===profile.author&&p.authorBio===profile.bio&&p.authorHandle==='nuevo'));
+  const reader=await readFile(path.join(outDir,'reader-appearance.js'),'utf8');
+  assert.match(reader,/baseUrl:new URL\('\.\/',import.meta.url\)/,'articles must fetch the profile from the site root');
 });
 
 test('renders published posts safely and emits linked public outputs', async (t) => {

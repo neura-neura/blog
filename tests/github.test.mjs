@@ -6,6 +6,30 @@ const encode = (value) => btoa(unescape(encodeURIComponent(JSON.stringify(value,
 const response = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const clientWith = (fetchImpl) => new GitHubClient({ owner: 'writer', repo: 'notes', token: 'secret-token', fetchImpl });
 
+test('profile publication creates or updates one shared file and excludes connection credentials', async () => {
+  for(const exists of [false,true]){
+    const calls=[];
+    const client=clientWith(async (url,options)=>{
+      calls.push({url,options});
+      return options.method==='PUT'?response(200,{commit:{sha:'profile-commit'}}):response(exists?200:404,{sha:'old-profile'});
+    });
+    assert.deepEqual(await client.saveProfile({author:'林夏',bio:'Bio',handle:'@writer',updatedAt:'2026-01-01T00:00:00Z',token:'secret-token',owner:'writer',repo:'notes'}),{commitSha:'profile-commit'});
+    const body=JSON.parse(calls[1].options.body);
+    assert.equal(body.sha,exists?'old-profile':undefined);
+    const profile=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(body.content),c=>c.charCodeAt(0))));
+    assert.equal(profile.author,'林夏');assert.equal(profile.handle,'writer');
+    assert.deepEqual(Object.keys(profile).sort(),['author','bio','handle','updatedAt']);
+    assert.match(calls[1].url,/\/contents\/blog-profile.json$/);
+  }
+});
+
+test('profile save failures are reported without claiming publication', async () => {
+  const client=clientWith(async (_url,options)=>options.method==='PUT'?response(403,{}):response(404,{}));
+  await assert.rejects(client.saveProfile({author:'Ada'}),/permisos/);
+  const unconfirmed=clientWith(async (_url,options)=>options.method==='PUT'?response(200,{}):response(404,{}));
+  await assert.rejects(unconfirmed.saveProfile({author:'Ada'}),/no confirmó/);
+});
+
 test('default fetch retains the browser global receiver for publication and status requests', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

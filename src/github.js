@@ -1,3 +1,4 @@
+import { normalizeProfile } from './profile.js';
 const API_ROOT = 'https://api.github.com';
 
 const validSlug = (slug) => typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
@@ -123,6 +124,21 @@ export class GitHubClient {
     const commitSha = result?.commit?.sha;
     if (!commitSha) throw new Error('GitHub no confirmó la eliminación con un commit. Comprueba el repositorio antes de volver a intentarlo.');
     return { commitSha, slug, deleted: true };
+  }
+
+  async saveProfile(value) {
+    const profile = normalizeProfile(value);
+    const existing = await this.request(`/contents/blog-profile.json?ref=${encodeURIComponent(this.branch)}`);
+    const result = await this.request('/contents/blog-profile.json', {
+      method: 'PUT',
+      body: JSON.stringify({
+        message: 'Update blog profile', branch: this.branch,
+        content: encodeBase64(JSON.stringify(profile, null, 2)),
+        ...(existing?.sha ? { sha: existing.sha } : {}),
+      }),
+    });
+    if (!result?.commit?.sha) throw new Error('GitHub no confirmó el perfil. Vuelve a guardar la configuración.');
+    return { commitSha: result.commit.sha };
   }
 
   async getDeploymentStatus(commitSha) {
