@@ -5,3 +5,5 @@
 @media(prefers-reduced-motion:reduce){.post-card{transition:none}}
 
 .author-card{display:inline-flex;align-items:center;gap:10px;color:var(--ink)}.reader-avatar{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:18px}.reader-handle{display:block;color:var(--muted);font-size:14px}.author-card strong{display:block}
+
+.prose figure{margin:28px 0;max-width:100%}.prose figure>img{display:block;width:100%;height:auto;border-radius:16px}.prose figcaption{font-size:15px;line-height:20px;color:var(--muted);text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 8px}

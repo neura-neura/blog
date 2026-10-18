@@ -74,3 +74,5 @@ header{gap:8px}
  #toast{bottom:24px}
  .focus-mode .shell{display:block}
 }
+
+.prose figure{margin:28px 0;max-width:100%}.prose figure>img{display:block;width:100%;height:auto;border-radius:16px}.prose figcaption{font-size:15px;line-height:20px;color:var(--muted);text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 8px}

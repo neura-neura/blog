@@ -24,6 +24,13 @@ const post = (extra = {}) => ({
   updatedAt: '2025-01-03T00:00:00Z', status: 'published', ...extra,
 });
 
+test('inline image captions and ALT survive publication while crop originals stay private', async t => {
+  const { outDir } = await fixture(t, { one: post({ html: '<figure data-body-image="true" data-original-src="private-original" data-image-crop="private-crop"><img src="https://example.test/cropped.webp" alt="A view &amp; sky"><figcaption>A caption &amp; details</figcaption></figure>' }) });
+  const article = await readFile(path.join(outDir, 'posts/hello-world.html'), 'utf8');
+  assert.match(article, /<figure><img src="https:\/\/example.test\/cropped.webp" alt="A view &amp; sky" \/><figcaption>A caption &amp; details<\/figcaption><\/figure>/);
+  assert.doesNotMatch(article, /private-original|private-crop/);
+});
+
 test('one public profile overrides stale authors throughout existing posts, home and RSS', async t => {
   const profile={author:'Nuevo <nombre>',bio:'Presentación & ideas',handle:'@nuevo',updatedAt:'2026-01-01T00:00:00Z',token:'private-secret',repo:'private-repo'};
   const {outDir}=await fixture(t,{one:post({author:'Autor anterior',authorBio:'Bio anterior'}),two:post({id:'two',slug:'second',author:'Otro anterior'})},profile);
