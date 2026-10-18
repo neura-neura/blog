@@ -28,6 +28,12 @@ export function applyProfileDOM(doc, value) {
 
 export function initProfile({ win = window, baseUrl = new URL('./', win.location.href), legacy, onChange = () => {}, fetchImpl = win.fetch.bind(win) } = {}) {
   const key = `blog-studio-profile-v1:${new URL(baseUrl).pathname}`;
+  try {
+    if(key==='blog-studio-profile-v1:/blog/'&&win.localStorage.getItem(key)===null){
+      const previous=win.localStorage.getItem('blog-studio-profile-v1:/blog-studio/');
+      if(previous!==null)win.localStorage.setItem(key,previous);
+    }
+  } catch { /* Keep the normal remote profile fallback when storage is unavailable. */ }
   let state = null;
   let revision = 0;
   const read = () => { try { const v = JSON.parse(win.localStorage.getItem(key)); return v?.profile ? { profile: normalizeProfile(v.profile), pending: !!v.pending } : null; } catch { return null; } };

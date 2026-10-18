@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { GitHubClient } from '../src/github.js';
 const owner=process.env.BLOG_OWNER||'neura-neura';
-const repo=process.env.BLOG_REPO||'blog-studio';
+const repo=process.env.BLOG_REPO||'blog';
 const token=execFileSync('gh',['auth','token'],{encoding:'utf8'}).trim();
 const client=new GitHubClient({owner,repo,token});
 const slug='prueba-automatica-publicacion';

@@ -12,7 +12,7 @@ test('private drafts never read or write content when repository is public, abse
     for (const action of [api => api.listDrafts(), api => api.saveDraft(draft)]) {
       const calls = [];
       const api = client(async url => { calls.push(url); return response(metadata ? 200 : 404, metadata); });
-      await assert.rejects(action(api), /privado|privados|privada/);
+      await assert.rejects(action(api), /privado|privados|privada|nube/);
       assert.deepEqual(calls, ['https://api.github.com/repos/writer/blog-drafts']);
     }
   }

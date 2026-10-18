@@ -15,7 +15,7 @@ export class PrivateDraftClient extends GitHubClient {
 
   async assertPrivate() {
     const repository = await this.request('');
-    if (!repository) throw Error(`Tu token necesita acceso a ${this.repo}, con permiso Contents: Read and write. Revisa el acceso a borradores privados.`);
+    if (!repository) throw Error(`Tu token necesita acceso a ${this.repo}, con permiso Contents: Read and write. Revisa el acceso a borradores en la nube.`);
     if (repository.private !== true) throw Error('No se guardó el borrador: el repositorio de borradores debe ser privado.');
     if (!repository.permissions?.push) throw Error('Tu token no permite guardar en el repositorio privado. Revisa sus permisos.');
     return repository;
@@ -24,9 +24,9 @@ export class PrivateDraftClient extends GitHubClient {
   async readDraft(entry) {
     if (!entry) return null;
     const file = entry.content ? entry : await this.request(`/git/blobs/${encodeURIComponent(entry.sha)}`);
-    if (!file?.content) throw Error('No se pudo leer el borrador privado.');
+    if (!file?.content) throw Error('No se pudo leer el borrador en la nube.');
     const draft = decode(file.content);
-    if (!validId(draft.id) || typeof draft.markdown !== 'string' || typeof draft.title !== 'string') throw Error('El borrador privado tiene un formato inválido.');
+    if (!validId(draft.id) || typeof draft.markdown !== 'string' || typeof draft.title !== 'string') throw Error('El borrador en la nube tiene un formato inválido.');
     return draft;
   }
 
@@ -34,7 +34,7 @@ export class PrivateDraftClient extends GitHubClient {
     await this.assertPrivate();
     const entries = await this.request(`/contents/drafts?ref=${encodeURIComponent(this.branch)}`);
     if (!entries) return [];
-    if (!Array.isArray(entries)) throw Error('No se pudieron leer los borradores privados.');
+    if (!Array.isArray(entries)) throw Error('No se pudieron leer los borradores en la nube.');
     return Promise.all(entries.filter(file => file.type === 'file' && validId(file.name.replace(/\.json$/, '')) && file.name.endsWith('.json')).map(async file => {
       const entry = await this.request(`/contents/drafts/${encodeURIComponent(file.name)}?ref=${encodeURIComponent(this.branch)}`);
       return this.readDraft(entry);
@@ -62,7 +62,7 @@ export class PrivateDraftClient extends GitHubClient {
     const result = await this.request(path, { method: 'PUT', body: JSON.stringify({
       message: 'Save private draft', content, branch: this.branch, ...(existing?.sha ? { sha: existing.sha } : {}),
     }) });
-    if (!result?.commit?.sha) throw Error('GitHub no confirmó el guardado privado. Comprueba Borradores antes de reintentar.');
+    if (!result?.commit?.sha) throw Error('GitHub no confirmó el guardado en la nube. Comprueba Borradores antes de reintentar.');
     return saved;
   }
 }

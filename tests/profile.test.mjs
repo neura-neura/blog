@@ -14,6 +14,13 @@ test('profile allows only public fields and normalizes names and handles', () =>
   assert.equal(normalizeProfile(null).author,'Mi blog');
 });
 
+test('Pages rename preserves pending profile edits from the previous path',async()=>{
+  const b=browser();const get=b.win.localStorage.getItem;b.win.localStorage.getItem=k=>get(k)??null;
+  b.storage.set('blog-studio-profile-v1:/blog-studio/',JSON.stringify({profile:{author:'Existing author',bio:'Pending edits'},pending:true}));
+  const profile=initProfile({win:b.win});await profile.ready;
+  assert.equal(profile.get().author,'Existing author');assert.equal(profile.pending(),true);
+});
+
 test('profile banner accepts safe images, rejects unsafe URLs and persists removal',async()=>{
   const image='data:image/webp;base64,UklGRg==';
   assert.equal(profileBannerUrl(image),image);

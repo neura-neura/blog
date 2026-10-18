@@ -12,6 +12,13 @@ test('saved token is restored in a new tab and after browser restart without ses
   const newTab=browser(first.shared);assert.equal(initTokenStore({win:newTab.win}).get(),'test-only-token');
   const restarted=browser(new Map(first.shared));assert.equal(initTokenStore({win:restarted.win}).get(),'test-only-token');
 });
+
+test('Pages rename migrates the existing token once without restoring it after logout',()=>{
+  const first=browser();first.shared.set('blog-studio-token-v2:/blog-studio/','existing-test-token');
+  const store=initTokenStore({win:first.win});assert.equal(store.get(),'existing-test-token');
+  store.set('');
+  assert.equal(initTokenStore({win:browser(first.shared).win}).get(),'');
+});
 test('legacy session migrates once and disconnect prevents resurrection from other tabs',()=>{
   const first=browser(new Map(),'legacy-test-token');const one=initTokenStore({win:first.win});
   assert.equal(one.get(),'legacy-test-token');assert.equal(first.session.size,0);

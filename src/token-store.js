@@ -4,6 +4,12 @@ export function initTokenStore({win=window,onChange=()=>{}}={}) {
   const legacyKey='blog-studio-token';
   let value='';
   try {
+    // A repository rename changes the Pages path, but keeps the same origin.
+    // Copy once; an empty new-path value is a logout tombstone and must win.
+    if(key==='blog-studio-token-v2:/blog/'&&win.localStorage.getItem(key)===null){
+      const previous=win.localStorage.getItem('blog-studio-token-v2:/blog-studio/');
+      if(previous!==null)win.localStorage.setItem(key,previous);
+    }
     const stored=win.localStorage.getItem(key);
     value=stored===null?(win.sessionStorage.getItem(legacyKey)||''):stored;
     // An empty stored value also records disconnect, preventing old tab sessions from restoring it.

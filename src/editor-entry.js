@@ -9,7 +9,7 @@ initAppearance();
 const app=document.querySelector('#app');
 const hosted=location.hostname.endsWith('.github.io');
 const owner=hosted?location.hostname.split('.')[0]:'neura-neura';
-const repo=hosted?location.pathname.split('/').filter(Boolean)[0]:'blog-studio';
+const repo=hosted?location.pathname.split('/').filter(Boolean)[0]:'blog';
 let entering=false;
 const tokens=initTokenStore({onChange:value=>{if(value&&!entering)verify(value);else if(!value)location.reload();}});
 app.innerHTML=`<main class="editor-login"><a class="login-brand" href="./index.html" aria-label="Volver al blog"><img src="./favicon.svg" alt="" width="44" height="44"></a><h1>Acceso al editor</h1><p>Solo el propietario y los colaboradores con permiso de escritura pueden editar este blog.</p><form id="login-form"><label for="login-token">Token de GitHub</label><input id="login-token" type="password" autocomplete="off" required placeholder="github_pat_…"><p class="login-hint">Se guardará en este navegador para tus próximas visitas.</p><p id="login-error" role="alert" hidden></p><button class="primary" type="submit">Entrar al editor</button></form><a class="login-back" href="./index.html">Volver a los artículos</a><button type="button" class="login-forget" hidden>Olvidar token guardado</button></main>`;

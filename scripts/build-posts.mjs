@@ -8,7 +8,7 @@ import { marked } from 'marked';
 import { readingStats } from '../src/reading-stats.js';
 import { renderIndex, uiIcon } from './render-index.mjs';
 
-const DEFAULT_SITE_URL = 'https://neura-neura.github.io/blog-studio';
+const DEFAULT_SITE_URL = 'https://neura-neura.github.io/blog';
 const allowedTags = [...sanitizeHtml.defaults.allowedTags, 'h1', 'img', 'video', 'audio', 'source', 'input',
   'math', 'semantics', 'annotation', 'mrow', 'mi', 'mn', 'mo', 'mtext', 'mspace', 'mfrac', 'msqrt', 'mroot', 'msup', 'msub', 'msubsup', 'munderover', 'mtable', 'mtr', 'mtd'];
 const sanitizeOptions = {
