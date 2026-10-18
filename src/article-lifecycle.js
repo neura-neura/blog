@@ -24,9 +24,23 @@ export function editableDraft(draft){
 }
 export async function movePublicationToDraft({post,workingCopy=post,removePublication,saveLocal}){
   const next=editableDraft(workingCopy);
+  if(post.updatedAt)next.sourcePublicationUpdatedAt=post.updatedAt;
   // Persist the working copy before withdrawing the public file, so a storage
   // failure cannot remove the public article and leave no recoverable draft.
   saveLocal(next);
   const result=await removePublication(post.slug);
   return {draft:next,result};
+}
+
+// Public JSON deliberately excludes private metadata. Reattach only the local
+// cloud revision when reopening it; never replace newer public content.
+export function publicationWorkingCopy(post,local,sameContent=sameDraftContent){
+  const previous=local.find(draft=>sameArticle(draft,post));
+  if(previous?.status==='draft')return previous;
+  const next={...post};
+  if(previous?.privateSavedAt)next.privateSavedAt=previous.privateSavedAt;
+  if(previous&&sameContent(previous,post)){
+    for(const key of ['html','coverSource','coverCrop'])if(previous[key]!==undefined)next[key]=previous[key];
+  }
+  return next;
 }

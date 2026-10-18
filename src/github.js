@@ -67,6 +67,23 @@ export class GitHubClient {
     }
   }
 
+  // Recover the publication baseline for drafts made by older editor versions
+  // which dropped private metadata when withdrawing a published article.
+  async getLastPublication(slug) {
+    this.assertSlug(slug);
+    const path=`posts/${slug}.json`;
+    const commits=await this.request(`/commits?path=${encodeURIComponent(path)}&sha=${encodeURIComponent(this.branch)}&per_page=1`,{cache:'no-store'});
+    if(!Array.isArray(commits)||!commits.length)return null;
+    const refs=[commits[0].sha,commits[0].parents?.[0]?.sha].filter(Boolean);
+    for(const ref of refs){
+      const file=await this.request(`/contents/posts/${encodeURIComponent(slug)}.json?ref=${encodeURIComponent(ref)}`,{cache:'no-store'});
+      if(!file?.content)continue;
+      const post=JSON.parse(decodeBase64(file.content));
+      if(post?.status==='published'&&post.slug===slug)return post;
+    }
+    return null;
+  }
+
   async listPosts() {
     const entries = await this.request(`/contents/posts?ref=${encodeURIComponent(this.branch)}`);
     if (!entries) return [];

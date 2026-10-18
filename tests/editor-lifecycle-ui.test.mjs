@@ -43,6 +43,20 @@ await click('[data-action="panel-drafts"]');await wait(()=>!w.document.querySele
 assert.equal(w.document.querySelector('[data-draft="published-qa"]'),null);
 assert.ok(calls.some(call=>call.method==='DELETE'));assert.ok(calls.filter(call=>call.method==='PUT').length>=2);
 
+// Reopen the public snapshot, as a real tab click does. It contains no cloud
+// token; the editor must recover that token from its private local metadata.
+await click('[data-action="panel-published"]');await wait(()=>w.document.querySelector('[data-published="0"]'));
+await click('[data-published="0"]');
+assert.equal(w.document.querySelector('.header-actions .primary').textContent,'Mover a borradores');
+await click('.header-actions [data-action="unpublish"]');await click('#dialog-form [type="submit"]');
+await wait(()=>!w.document.querySelector('#article-title').readOnly);
+const editedTitle=w.document.querySelector('#article-title');editedTitle.value='Segundo ciclo de edición';editedTitle.dispatchEvent(new w.Event('input',{bubbles:true}));
+await click('[data-action="more"]');await click('[data-action="save-private"]');await click('#dialog-form [type="submit"]');
+await wait(()=>storedCloud.title==='Segundo ciclo de edición');
+assert.equal(w.document.querySelector('#modal').open,false);
+assert.match(w.document.querySelector('#articles-list').textContent,/en la nube/);
+assert.equal(published,null);
+assert.equal(JSON.parse(w.localStorage.getItem('blog-studio-drafts-v1')).find(d=>d.id==='published-qa').privateSavedAt,storedCloud.privateSavedAt);
 dom.window.close();
 });
 

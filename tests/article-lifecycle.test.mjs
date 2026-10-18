@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {recoverPublishedEdits,movePublicationToDraft} from '../src/article-lifecycle.js';
+import {recoverPublishedEdits,movePublicationToDraft,publicationWorkingCopy} from '../src/article-lifecycle.js';
 import {draftEntries} from '../src/draft-list.js';
 import {publishedArticles} from '../src/published-posts.js';
 const live={id:'one',slug:'first',title:'Artículo',html:'<p>Publicado</p>',markdown:'Publicado',status:'published',updatedAt:'2026-10-18T10:00:00Z'};
@@ -32,4 +32,12 @@ test('storage failure stops unpublishing; request failure retains the saved reco
  let removed=false,saved;
  await assert.rejects(movePublicationToDraft({post:live,saveLocal:()=>{throw Error('storage full');},removePublication:async()=>{removed=true;}}),/storage full/);assert.equal(removed,false);
  await assert.rejects(movePublicationToDraft({post:live,saveLocal:d=>{saved=d;},removePublication:async()=>{throw Error('offline');}}),/offline/);assert.equal(saved.status,'draft');assert.equal(saved.html,live.html);
+});
+
+test('opening a public snapshot preserves the cloud revision without replacing public content',()=>{
+ const prior={...live,privateSavedAt:'saved-revision',title:'An older publication'};
+ const working=publicationWorkingCopy(live,[prior]);
+ assert.equal(working.title,live.title);assert.equal(working.privateSavedAt,'saved-revision');
+ const pending={...prior,status:'draft',title:'Working edit'};
+ assert.equal(publicationWorkingCopy(live,[pending]),pending);
 });

@@ -240,3 +240,18 @@ test('getDeploymentStatus returns the latest matching Actions run', async () => 
     status: 'completed', conclusion: 'success', url: 'https://github.com/writer/notes/actions/runs/1',
   });
 });
+
+test('historical publication baseline is recovered after an earlier editor withdrew the public file',async()=>{
+ const post={id:'one',slug:'first',status:'published',updatedAt:'2026-10-18T11:00:00Z'};
+ const calls=[];
+ const api=clientWith(async(url,options)=>{
+  calls.push(url);assert.equal(options.cache,'no-store');
+  if(url.includes('/commits?'))return response(200,[{sha:'withdrawn',parents:[{sha:'published-parent'}]}]);
+  if(url.endsWith('ref=withdrawn'))return response(404,{});
+  return response(200,{type:'file',content:encode(post)});
+ });
+ assert.deepEqual(await api.getLastPublication('first'),post);
+ assert.equal(calls.length,3);
+ assert.match(calls[0],/path=posts%2Ffirst.json/);
+ await assert.rejects(api.getLastPublication('../bad'),/slug/);
+});

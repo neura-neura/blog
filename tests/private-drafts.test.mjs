@@ -86,3 +86,21 @@ test('cloud refresh and version checks bypass cached Contents API responses', as
   await assert.rejects(api.saveDraft(draft,'old'),/otro dispositivo/);
   assert.ok(calls.filter(call=>call.url.includes('/contents/')).every(call=>call.options.cache==='no-store'));
 });
+
+test('a consumed pre-publication cloud snapshot can be updated after a lost local revision', async () => {
+  const writes=[];
+  const remote={...draft,slug:'idea',privateSavedAt:'2026-10-18T10:00:00Z'};
+  const api=client(async(url,options)=>{
+    if(options.method==='PUT'){writes.push(JSON.parse(options.body));return response(201,{commit:{sha:'repaired'}});}
+    return response(200,url.includes('/contents/')?{sha:'cloud-sha',content:encode(remote)}:{private:true,permissions:{push:true}});
+  });
+  await api.saveDraft({...draft,slug:'idea',title:'Edited again',sourcePublicationUpdatedAt:'2026-10-18T11:00:00Z'});
+  assert.equal(writes[0].sha,'cloud-sha');
+  assert.equal(JSON.parse(Buffer.from(writes[0].content,'base64')).title,'Edited again');
+  const count=writes.length;
+  // An actual newer cloud edit and an explicitly stale revision still conflict.
+  await assert.rejects(api.saveDraft({...draft,slug:'idea',sourcePublicationUpdatedAt:'2026-10-18T09:00:00Z'}),/otro dispositivo/);
+  await assert.rejects(api.saveDraft({...draft,slug:'idea',sourcePublicationUpdatedAt:'2026-10-18T11:00:00Z'},'stale-known-revision'),/otro dispositivo/);
+  await assert.rejects(api.saveDraft({...draft,slug:'different',sourcePublicationUpdatedAt:'2026-10-18T11:00:00Z'}),/otro dispositivo/);
+  assert.equal(writes.length,count);
+});

@@ -48,10 +48,13 @@ export class PrivateDraftClient extends GitHubClient {
     const existing = await this.request(`${path}?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
     if (existing) {
       const remote = await this.readDraft(existing);
-      if (remote.privateSavedAt !== expectedVersion) throw Error('Este borrador cambió en otro dispositivo. Abre Borradores y recupera la versión más reciente antes de volver a guardarlo.');
+      const publishedBefore=Date.parse(draft.sourcePublicationUpdatedAt);
+      const savedAt=Date.parse(remote.privateSavedAt);
+      const consumedSnapshot=!expectedVersion&&draft.slug&&draft.slug===remote.slug&&remote.id===draft.id&&Number.isFinite(publishedBefore)&&Number.isFinite(savedAt)&&savedAt<=publishedBefore;
+      if (remote.privateSavedAt !== expectedVersion&&!consumedSnapshot) throw Error('Este borrador cambió en otro dispositivo. Abre Borradores y recupera la versión más reciente antes de volver a guardarlo.');
     }
     const saved = {};
-    for (const key of ['id', 'title', 'markdown', 'html', 'cover', 'coverSource', 'coverCrop', 'slug', 'tags', 'excerpt', 'author', 'authorBio', 'authorHandle', 'publishedAt', 'updatedAt']) {
+    for (const key of ['id', 'title', 'markdown', 'html', 'cover', 'coverSource', 'coverCrop', 'slug', 'tags', 'excerpt', 'author', 'authorBio', 'authorHandle', 'publishedAt', 'updatedAt', 'sourcePublicationUpdatedAt']) {
       if (draft[key] !== undefined) saved[key] = draft[key];
     }
     saved.status = 'draft';
