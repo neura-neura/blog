@@ -4,7 +4,7 @@ export function publishedArticles(remote, local) {
   for (const post of local.filter(post => post.status === 'published')) {
     const key = post.id || post.slug;
     const saved = posts.get(key);
-    if (!saved || (post.updatedAt || '') >= (saved.updatedAt || '')) posts.set(key, post);
+    if (!saved) posts.set(key, post);
   }
   return [...posts.values()].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
 }
@@ -29,12 +29,12 @@ export function createPublishedLibrary({ listPosts, onChange = () => {} }) {
     },
     upsert(post) {
       revision++;
-      posts = posts.filter(item => item.id !== post.id && item.slug !== post.slug).concat(post);
+      posts = posts.filter(item => item.id !== post.id && (!post.slug || item.slug !== post.slug)).concat(post);
       notify();
     },
     remove(post) {
       revision++;
-      posts = posts.filter(item => item.id !== post.id && item.slug !== post.slug);
+      posts = posts.filter(item => item.id !== post.id && (!post.slug || item.slug !== post.slug));
       notify();
     },
   };

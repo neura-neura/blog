@@ -36,10 +36,10 @@ export const BodyImage = Image.extend({
       const remove = document.createElement('button');remove.type = 'button';remove.className = 'body-image-remove';remove.textContent = '×';remove.setAttribute('aria-label', 'Quitar imagen');
       const caption = document.createElement('button');caption.type = 'button';caption.className = 'body-image-caption';caption.setAttribute('aria-label', 'Editar pie de imagen');
       media.append(image, edit, remove);figure.append(media, caption);
-      const select = () => { const pos = getPos();if (typeof pos === 'number') editor.commands.setNodeSelection(pos);return pos; };
-      edit.onclick = event => { event.preventDefault();event.stopPropagation();select();onEdit(editor, getPos, 'crop'); };
-      caption.onclick = event => { event.preventDefault();event.stopPropagation();select();onEdit(editor, getPos, 'caption'); };
-      remove.onclick = event => { event.preventDefault();event.stopPropagation();const pos = select();if (typeof pos === 'number') editor.chain().focus().deleteRange({ from: pos, to: pos + current.nodeSize }).run(); };
+      const select = () => { if(!editor.isEditable)return;const pos = getPos();if (typeof pos === 'number') editor.commands.setNodeSelection(pos);return pos; };
+      edit.onclick = event => { event.preventDefault();event.stopPropagation();if(!editor.isEditable)return;select();onEdit(editor, getPos, 'crop'); };
+      caption.onclick = event => { event.preventDefault();event.stopPropagation();if(!editor.isEditable)return;select();onEdit(editor, getPos, 'caption'); };
+      remove.onclick = event => { event.preventDefault();event.stopPropagation();if(!editor.isEditable)return;const pos = select();if (typeof pos === 'number') editor.chain().focus().deleteRange({ from: pos, to: pos + current.nodeSize }).run(); };
       function render() {
         image.src = current.attrs.src;image.alt = current.attrs.alt || '';
         caption.textContent = current.attrs.caption || 'Añade un pie de imagen (opcional)';

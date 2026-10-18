@@ -57,7 +57,7 @@ export class GitHubClient {
 
   async getPost(slug) {
     this.assertSlug(slug);
-    const entry = await this.request(`/contents/posts/${encodeURIComponent(slug)}.json?ref=${encodeURIComponent(this.branch)}`);
+    const entry = await this.request(`/contents/posts/${encodeURIComponent(slug)}.json?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
     if (!entry) return null;
     if (entry.type !== 'file' || !entry.content) return null;
     try {
@@ -114,7 +114,7 @@ export class GitHubClient {
   async deletePost(slug) {
     this.assertSlug(slug);
     const path = `/contents/posts/${encodeURIComponent(slug)}.json?ref=${encodeURIComponent(this.branch)}`;
-    const existing = await this.request(path);
+    const existing = await this.request(path, { cache: 'no-store' });
     if (!existing) return { commitSha: null, slug, deleted: false };
     const result = await this.request(`/contents/posts/${encodeURIComponent(slug)}.json`, {
       method: 'DELETE',

@@ -16,6 +16,6 @@ test('local edits are preserved and the older private snapshot is identified', (
   assert.equal(entry.remoteOnly, false);
 });
 test('published articles are excluded even when a private snapshot exists', () => {
-  assert.deepEqual(draftEntries([{ ...draft, status: 'published' }], [draft]), []);
-  assert.deepEqual(draftEntries([], [{ ...draft, originalStatus: 'published' }]), []);
+  assert.deepEqual(draftEntries([{ ...draft, status: 'published' }], [{...draft,privateSavedAt:'2026-10-18'}],undefined,[{...draft,status:'published',updatedAt:'2026-10-19'}]), []);
+  assert.equal(draftEntries([], [{ ...draft, originalStatus: 'published' }])[0].remoteOnly,true);
 });

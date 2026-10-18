@@ -15,9 +15,9 @@ test('a clean browser and a reload both recover publications from GitHub', async
   }
 });
 
-test('refresh preserves newer local edits and prefers newer remote versions without duplicates', () => {
+test('published list uses the public snapshot instead of newer unpublished local edits', () => {
   const edited = { ...post, title: 'Unsaved changes', updatedAt: '2026-10-17T13:00:00Z' };
-  assert.deepEqual(publishedArticles([post], [edited]), [edited]);
+  assert.deepEqual(publishedArticles([post], [edited]), [post]);
   assert.deepEqual(publishedArticles([edited], [post]), [edited]);
   assert.deepEqual(publishedArticles([post], [{ ...post, id: 'draft', status: 'draft' }]), [post]);
 });
