@@ -39,6 +39,11 @@ test('renders published posts safely and emits linked public outputs', async (t)
   assert.match(await readFile(path.join(outDir, 'appearance.css'), 'utf8'), /--font-scale/);
   assert.match(article, /href="\.\.\/index\.html"/);
   assert.match(article, /href="\.\.\/editor\.html"/);
+  assert.match(article, /<meta name="article-version" content="2025-01-03T00:00:00Z">/);
+  assert.match(article, /aspect-ratio:5\/2;height:auto;object-fit:cover;object-position:center/);
+  const missing = await readFile(path.join(outDir,'404.html'),'utf8');
+  assert.match(missing, /src="\/blog\/pending-article.js"/);
+  assert.match(missing, /href="\/blog\/index.html"/);
   assert.match(index, /posts\/hello-world\.html/);
   assert.match(index, /editor\.html/);
   assert.match(feed, /https:\/\/example\.test\/blog\/posts\/hello-world\.html/);
