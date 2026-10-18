@@ -46,6 +46,16 @@ test('renders published posts safely and emits linked public outputs', async (t)
   assert.match(missing, /href="\/blog\/index.html"/);
   assert.match(index, /posts\/hello-world\.html/);
   assert.match(index, /editor\.html/);
+  assert.match(index, /href="\.\/favicon.svg"/);
+  assert.match(article, /href="\.\.\/favicon.svg"/);
+  assert.match(missing, /href="\/blog\/favicon.svg"/);
+  assert.match(await readFile(path.join(outDir, 'favicon.svg'), 'utf8'), /viewBox="0 0 64 64"/);
+  const header = article.match(/<header class="reader-topbar">(.*?)<\/header>/s)[1];
+  assert.equal((header.match(/href="\.\.\/index.html"/g) || []).length, 1);
+  assert.equal((header.match(/href="\.\.\/editor.html"/g) || []).length, 1);
+  assert.match(header, /aria-label="Escribir un artículo"/);
+  assert.match(index, /data-search="hello &lt;script&gt;/i);
+  assert.doesNotMatch(index, /<script>alert|onclick=|javascript:/i);
   assert.match(feed, /https:\/\/example\.test\/blog\/posts\/hello-world\.html/);
   assert.match(sitemap, /https:\/\/example\.test\/blog\/posts\/hello-world\.html/);
   assert.equal(publicPosts.length, 1);
@@ -102,5 +112,6 @@ test('renders markdown content when html is empty and serves Spanish index label
   assert.match(article, /Texto desde Markdown\./);
   assert.match(article, /lang="es"/);
   assert.match(index, /Artículos/);
-  assert.match(index, /Escritura sin prisa\./);
+  assert.match(index, /class="post-card"/);
+  assert.match(index, /Buscar en este blog/);
 });
