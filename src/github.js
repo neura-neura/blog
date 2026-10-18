@@ -141,6 +141,14 @@ export class GitHubClient {
     return { commitSha: result.commit.sha };
   }
 
+  async assertEditorAccess() {
+    const repository = await this.request('');
+    if (!repository?.permissions?.push) {
+      throw new Error('Este token no tiene acceso de escritura a este blog. Solo el propietario o sus colaboradores pueden entrar al editor.');
+    }
+    return true;
+  }
+
   async getDeploymentStatus(commitSha) {
     if (!commitSha) throw new Error('Indica el commit para consultar el estado de publicación.');
     const result = await this.request(`/actions/runs?head_sha=${encodeURIComponent(commitSha)}`);

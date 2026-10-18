@@ -32,7 +32,7 @@ let drafts; try { drafts=JSON.parse(localStorage.getItem(STORAGE)||'[]'); if(!Ar
 let settings; try {settings=JSON.parse(localStorage.getItem('blog-studio-settings')||'{}');} catch {settings={};}
 const legacyProfile=typeof settings.author==='string'?{author:settings.author,bio:settings.bio||'',handle:settings.handle||settings.owner}:null;
 settings={owner:'neura-neura',repo:'blog-studio',author:'林知夏',...settings};
-const tokenStore=initTokenStore({onChange:value=>{token=value;renderConnectionStatus();const input=$('#dialog-form [name=token]');if(input)input.value=value;}});
+const tokenStore=initTokenStore({onChange:value=>{token=value;renderConnectionStatus();const input=$('#dialog-form [name=token]');if(input)input.value=value;if(!value)setTimeout(()=>location.reload(),0);}});
 let token=tokenStore.get();
 let current=drafts[0]||newDraft(), timer, sourceMode=false, preview=false, published=[], saving=false, articleTab='draft';
 function newDraft(){return {id:crypto.randomUUID(),title:'',markdown:'',html:'',cover:'',author:settings.author,authorBio:settings.bio||'',authorHandle:settings.handle||settings.owner,slug:'',tags:[],excerpt:'',status:'draft',updatedAt:new Date().toISOString()};}

@@ -6,6 +6,17 @@ const encode = (value) => btoa(unescape(encodeURIComponent(JSON.stringify(value,
 const response = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const clientWith = (fetchImpl) => new GitHubClient({ owner: 'writer', repo: 'notes', token: 'secret-token', fetchImpl });
 
+test('editor access requires GitHub-confirmed write permission on this repository', async () => {
+  for(const permissions of [{push:false,pull:true},{},null]){
+    const client=clientWith(async()=>response(200,{permissions}));
+    await assert.rejects(client.assertEditorAccess(),/Solo el propietario/);
+  }
+  const allowed=clientWith(async(url)=>{assert.equal(url,'https://api.github.com/repos/writer/notes');return response(200,{permissions:{push:true}});});
+  assert.equal(await allowed.assertEditorAccess(),true);
+  await assert.rejects(clientWith(async()=>response(401,{})).assertEditorAccess(),/rechazó el token/);
+  await assert.rejects(clientWith(async()=>response(404,{})).assertEditorAccess(),/Solo el propietario/);
+});
+
 test('profile publication creates or updates one shared file and excludes connection credentials', async () => {
   for(const exists of [false,true]){
     const calls=[];
