@@ -48,7 +48,7 @@ export class PrivateDraftClient extends GitHubClient {
     const existing = await this.request(`${path}?ref=${encodeURIComponent(this.branch)}`);
     if (existing) {
       const remote = await this.readDraft(existing);
-      if (remote.privateSavedAt !== expectedVersion) throw Error('Este borrador cambió en otro dispositivo. Abre Privados y recupera la versión más reciente antes de volver a guardarlo.');
+      if (remote.privateSavedAt !== expectedVersion) throw Error('Este borrador cambió en otro dispositivo. Abre Borradores y recupera la versión más reciente antes de volver a guardarlo.');
     }
     const saved = {};
     for (const key of ['id', 'title', 'markdown', 'html', 'cover', 'coverSource', 'coverCrop', 'slug', 'tags', 'excerpt', 'author', 'authorBio', 'authorHandle', 'publishedAt', 'updatedAt']) {
@@ -62,7 +62,7 @@ export class PrivateDraftClient extends GitHubClient {
     const result = await this.request(path, { method: 'PUT', body: JSON.stringify({
       message: 'Save private draft', content, branch: this.branch, ...(existing?.sha ? { sha: existing.sha } : {}),
     }) });
-    if (!result?.commit?.sha) throw Error('GitHub no confirmó el guardado privado. Comprueba Privados antes de reintentar.');
+    if (!result?.commit?.sha) throw Error('GitHub no confirmó el guardado privado. Comprueba Borradores antes de reintentar.');
     return saved;
   }
 }
