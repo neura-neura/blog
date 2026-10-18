@@ -1,3 +1,4 @@
+import { buildSearch } from './build-search.mjs';
 import { normalizeProfile } from '../src/profile.js';
 import { readdir, readFile, mkdir, writeFile, copyFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -127,14 +128,16 @@ export async function buildPosts({ postsDir = 'posts', outDir = 'dist', siteUrl 
   for(const post of posts)Object.assign(post,{author:profile.author,authorBio:profile.bio,authorHandle:profile.handle,authorAvatar:profile.avatar,authorWebsite:profile.website});
   await mkdir(path.join(output, 'posts'), { recursive: true });
   const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src');
-  await Promise.all(['appearance.js','appearance.css','pending-article.js','blog.css','blog-index.js','post-order.js','profile.js'].map(file => copyFile(path.join(sourceRoot,file),path.join(output,file))));
-  const styleVersion=createHash('sha256').update(await readFile(path.join(sourceRoot,'blog.css'))).update(await readFile(path.join(sourceRoot,'blog-index.js'))).digest('hex').slice(0,12);
+  await Promise.all(['appearance.js','appearance.css','pending-article.js','blog.css','blog-index.js','feed-pager.js','feed-card.js','post-order.js','profile.js'].map(file => copyFile(path.join(sourceRoot,file),path.join(output,file))));
+  const styleVersion=createHash('sha256').update(await readFile(path.join(sourceRoot,'blog.css'))).update(await readFile(path.join(sourceRoot,'blog-index.js'))).update(await readFile(path.join(sourceRoot,'feed-pager.js'))).update(await readFile(path.join(sourceRoot,'feed-card.js'))).digest('hex').slice(0,12);
   const versionStyles=html=>html.replaceAll('blog.css\"',`blog.css?v=${styleVersion}\"`).replaceAll('blog-index.js\"',`blog-index.js?v=${styleVersion}\"`);
   await copyFile(path.resolve(sourceRoot,'../public/favicon.svg'),path.join(output,'favicon.svg'));
   await writeFile(path.join(output,'profile.json'),JSON.stringify(profile,null,2),'utf8');
   await writeFile(path.join(output,'reader-appearance.js'), "import { initAppearance } from './appearance.js';\ninitAppearance();\nimport { initProfile } from './profile.js';\ninitProfile({baseUrl:new URL('./',import.meta.url)});\n");
-  await Promise.all(posts.map((post) => writeFile(path.join(output, 'posts', `${post.slug}.html`), versionStyles(renderArticle(post, `${base}/posts/${encodeURIComponent(post.slug)}.html`)), 'utf8')));
-  await writeFile(path.join(output, 'index.html'), versionStyles(renderIndex(posts,{profile,siteUrl:base,escapeHtml,safeImageUrl,plainText:post=>decodeAttribute(sanitizeHtml(String(post.html||marked.parse(post.markdown||'')).replace(/<[^>]+>/g,' '),{allowedTags:[],allowedAttributes:{}})).replace(/\s+/g,' ').trim()})), 'utf8');
+  const plainText=post=>decodeAttribute(sanitizeHtml(String(post.html||marked.parse(post.markdown||'')).replace(/<[^>]+>/g,' '),{allowedTags:[],allowedAttributes:{}})).replace(/\s+/g,' ').trim();
+  const {renderOptions}=await buildSearch(posts,{output,profile,escapeHtml,safeImageUrl,plainText});
+  for(let offset=0;offset<posts.length;offset+=32)await Promise.all(posts.slice(offset,offset+32).map((post) => writeFile(path.join(output, 'posts', `${post.slug}.html`), versionStyles(renderArticle(post, `${base}/posts/${encodeURIComponent(post.slug)}.html`)), 'utf8')));
+  await writeFile(path.join(output, 'index.html'),versionStyles(renderIndex(posts,{...renderOptions,siteUrl:base})), 'utf8');
   const sitePath=new URL(base).pathname.replace(/\/$/,'');
   await writeFile(path.join(output,'404.html'),`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Artículo · Blog</title><link rel="icon" type="image/svg+xml" href="${sitePath}/favicon.svg"><link rel="stylesheet" href="${sitePath}/appearance.css"><script type="module" src="${sitePath}/pending-article.js"></script><style>body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}.waiting{max-width:520px;margin:15vh auto;padding:32px}h1{font-size:26px;line-height:32px}p{color:var(--muted)}.home{display:inline-flex;padding:10px 20px;border-radius:99px;background:var(--blue,#1d9bf0);color:#fff;text-decoration:none;font-weight:700}</style></head><body><main class="waiting"><h1 id="pending-title">No encontramos esta página</h1><p id="pending-message">Comprueba el enlace o vuelve al blog.</p><a class="home" href="${sitePath}/index.html">Volver al blog</a></main></body></html>`,'utf8');
 

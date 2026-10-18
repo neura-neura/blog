@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { buildPosts } from '../scripts/build-posts.mjs';
+import { renderIndex } from '../scripts/render-index.mjs';
 
 async function fixture(t, entries, profile) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'build-posts-'));
@@ -22,6 +23,27 @@ const post = (extra = {}) => ({
   html: '<h1>Hello</h1><script>alert(1)</script><p onclick="alert(1)">safe <a href="javascript:alert(1)">link</a></p>',
   cover: '', author: 'Ada', excerpt: 'A short note', tags: ['writing'], publishedAt: '2025-01-02T00:00:00Z',
   updatedAt: '2025-01-03T00:00:00Z', status: 'published', ...extra,
+});
+
+test('100,000 publications produce only 20 cards in the initial home HTML',()=>{
+  const posts=Array.from({length:100000},(_,index)=>({slug:`entry-${index}`,title:`Entry ${index}`,publishedAt:'2026-01-01'}));
+  const html=renderIndex(posts,{profile:{author:'Writer',bio:'Bio',handle:'writer',website:''},siteUrl:'https://example.test',escapeHtml:String,safeImageUrl:()=>'',plainText:()=> 'Content'});
+  assert.equal((html.match(/class="post-card"/g)||[]).length,20);
+  assert.match(html,/data-total="100000"/);
+  assert.doesNotMatch(html,/Entry 99999/);
+  assert.match(html,/id="feed-load-more"/);
+});
+
+test('build includes a search index and a bounded initial feed without exposing drafts',async t=>{
+  const entries=Object.fromEntries(Array.from({length:45},(_,index)=>[`post-${index}`,post({id:`id-${index}`,slug:`entry-${index}`,title:`Title ${index}`})]));
+  entries.draft=post({slug:'secret-draft',status:'draft',title:'Never indexed'});
+  const {outDir}=await fixture(t,entries);
+  const html=await readFile(path.join(outDir,'index.html'),'utf8');
+  assert.equal((html.match(/class="post-card"/g)||[]).length,20);
+  assert.match(html,/data-total="45"/);
+  assert.doesNotMatch(html,/secret-draft|Never indexed/);
+  assert.match(await readFile(path.join(outDir,/data-search-path="\.\/([^"]+)"/.exec(html)[1],'pagefind.js'),'utf8'),/search/);
+  assert.match(await readFile(path.join(outDir,'feed-pager.js'),'utf8'),/pageSize = 20/);
 });
 
 test('inline image captions and ALT survive publication while crop originals stay private', async t => {
@@ -105,7 +127,7 @@ test('renders published posts safely and emits linked public outputs', async (t)
   const header = article.match(/<header class="reader-topbar">(.*?)<\/header>/s)[1];
   assert.equal((header.match(/href="\.\.\/index.html"/g) || []).length, 1);
   assert.equal((header.match(/href="\.\.\/editor.html"/g) || []).length, 0);
-  assert.match(index, /data-search="hello &lt;script&gt;/i);
+  assert.match(index, /data-title="hello &lt;script&gt;/i);
   assert.doesNotMatch(index, /<script>alert|onclick=|javascript:/i);
   assert.match(feed, /https:\/\/example\.test\/blog\/posts\/hello-world\.html/);
   assert.match(sitemap, /https:\/\/example\.test\/blog\/posts\/hello-world\.html/);
