@@ -6,6 +6,24 @@ const encode = (value) => btoa(unescape(encodeURIComponent(JSON.stringify(value,
 const response = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const clientWith = (fetchImpl) => new GitHubClient({ owner: 'writer', repo: 'notes', token: 'secret-token', fetchImpl });
 
+test('default fetch retains the browser global receiver for publication and status requests', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const methods = [];
+  globalThis.fetch = async function (_url, options) {
+    assert.equal(this, globalThis, 'native browser fetch must not receive the GitHubClient as this');
+    methods.push(options.method || 'GET');
+    if (options.method === 'PUT') return response(201, { commit: { sha: 'native-fetch-commit' } });
+    if (_url.includes('/actions/runs')) return response(200, { workflow_runs: [{ status: 'completed', conclusion: 'success', html_url: 'https://github.com/writer/notes/actions/runs/1' }] });
+    return response(404, {});
+  };
+  const client = new GitHubClient({ owner: 'writer', repo: 'notes', token: 'test-token' });
+  const published = await client.publishPost({ id: 'browser', slug: 'browser-test', title: 'Browser test', markdown: 'Body' });
+  assert.equal(published.commitSha, 'native-fetch-commit');
+  assert.equal((await client.getDeploymentStatus(published.commitSha)).conclusion, 'success');
+  assert.deepEqual(methods, ['GET', 'PUT', 'GET']);
+});
+
 test('getPost and listPosts read JSON files and only list published posts', async () => {
   const calls = [];
   const fetchImpl = async (url, options) => {

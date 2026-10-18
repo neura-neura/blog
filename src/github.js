@@ -18,7 +18,7 @@ function decodeBase64(value) {
 }
 
 export class GitHubClient {
-  constructor({ owner, repo, token, branch = 'main', fetchImpl = fetch } = {}) {
+  constructor({ owner, repo, token, branch = 'main', fetchImpl = globalThis.fetch.bind(globalThis) } = {}) {
     if (!owner || !repo || !token) throw new Error('Faltan las credenciales o el repositorio de GitHub.');
     this.owner = owner;
     this.repo = repo;
