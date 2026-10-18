@@ -8,7 +8,7 @@ const repo=process.env.BLOG_REPO||'blog';
 const token=execFileSync('gh',['auth','token'],{encoding:'utf8'}).trim();
 const client=new GitHubClient({owner,repo,token});
 const slug='prueba-automatica-publicacion';
-const post={id:'blog-studio-integration-test',slug,title:'Prueba automática de publicación',author:'Blog Studio',markdown:'## Publicación verificada\n\nEste artículo temporal comprueba el flujo completo.',html:'<h2>Publicación verificada</h2><p>Este artículo temporal comprueba el flujo completo.</p>',status:'published',publishedAt:new Date().toISOString()};
+const post={id:'blog-studio-integration-test',slug,title:'Prueba automática de publicación',author:'Blog',markdown:'## Publicación verificada\n\nEste artículo temporal comprueba el flujo completo.',html:'<h2>Publicación verificada</h2><p>Este artículo temporal comprueba el flujo completo.</p>',status:'published',publishedAt:new Date().toISOString()};
 async function deployment(sha){
   for(let i=0;i<80;i++){
     await new Promise(r=>setTimeout(r,5000));

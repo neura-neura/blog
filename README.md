@@ -1,4 +1,4 @@
-# Blog Studio
+# Blog
 
 Editor de artículos inspirado en X Articles. GitHub Pages sirve el blog y el editor; no hay servidor, VPN ni credenciales en el código publicado.
 
