@@ -127,9 +127,9 @@ export async function buildPosts({ postsDir = 'posts', outDir = 'dist', siteUrl 
   for(const post of posts)Object.assign(post,{author:profile.author,authorBio:profile.bio,authorHandle:profile.handle,authorAvatar:profile.avatar,authorWebsite:profile.website});
   await mkdir(path.join(output, 'posts'), { recursive: true });
   const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src');
-  await Promise.all(['appearance.js','appearance.css','pending-article.js','blog.css','blog-index.js','profile.js'].map(file => copyFile(path.join(sourceRoot,file),path.join(output,file))));
-  const styleVersion=createHash('sha256').update(await readFile(path.join(sourceRoot,'blog.css'))).digest('hex').slice(0,12);
-  const versionStyles=html=>html.replaceAll('blog.css\"',`blog.css?v=${styleVersion}\"`);
+  await Promise.all(['appearance.js','appearance.css','pending-article.js','blog.css','blog-index.js','post-order.js','profile.js'].map(file => copyFile(path.join(sourceRoot,file),path.join(output,file))));
+  const styleVersion=createHash('sha256').update(await readFile(path.join(sourceRoot,'blog.css'))).update(await readFile(path.join(sourceRoot,'blog-index.js'))).digest('hex').slice(0,12);
+  const versionStyles=html=>html.replaceAll('blog.css\"',`blog.css?v=${styleVersion}\"`).replaceAll('blog-index.js\"',`blog-index.js?v=${styleVersion}\"`);
   await copyFile(path.resolve(sourceRoot,'../public/favicon.svg'),path.join(output,'favicon.svg'));
   await writeFile(path.join(output,'profile.json'),JSON.stringify(profile,null,2),'utf8');
   await writeFile(path.join(output,'reader-appearance.js'), "import { initAppearance } from './appearance.js';\ninitAppearance();\nimport { initProfile } from './profile.js';\ninitProfile({baseUrl:new URL('./',import.meta.url)});\n");
