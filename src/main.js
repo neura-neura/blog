@@ -123,7 +123,7 @@ async function savePublicProfile(profile){
   settings={...settings,...profile};localStorage.setItem('blog-studio-settings',JSON.stringify(settings));
   const value=blogProfile.set(settings);save();
   if(!token){toast('Perfil actualizado en este navegador. Conecta tu token para actualizar el blog público.');return;}
-  try{await client().saveProfile(value);blogProfile.markPublished(value);toast('Perfil guardado. GitHub está actualizando el blog y todos los artículos.');}
+  try{const result=await client().saveProfile(value);blogProfile.markPublished(value);toast(result.unchanged?'Configuración guardada. Tu perfil público ya está actualizado.':'Perfil guardado. GitHub está actualizando el blog y todos los artículos.');}
   catch(error){throw Error('Tus cambios quedaron guardados en este navegador. '+error.message);}
 }
 function showSettings(){

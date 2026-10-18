@@ -11,6 +11,12 @@ export function normalizeProfile(value = {}) {
   return { author: text('author', 100) || 'Mi blog', bio: text('bio', 500), handle: text('handle', 100).replace(/^@+/, ''), banner:profileBannerUrl(value?.banner), avatar:profileBannerUrl(value?.avatar), website, updatedAt: text('updatedAt', 40) };
 }
 
+export function sameProfile(left, right) {
+  const { updatedAt: _left, ...a } = normalizeProfile(left);
+  const { updatedAt: _right, ...b } = normalizeProfile(right);
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function applyProfileDOM(doc, value) {
   const profile = normalizeProfile(value);
   for (const node of doc.querySelectorAll('[data-profile]')) {
@@ -69,7 +75,10 @@ export function initProfile({ win = window, baseUrl = new URL('./', win.location
     ready, refresh,
     get: () => state ? { ...state.profile } : null,
     pending: () => !!state?.pending,
-    set(value) { revision++; state = { profile: normalizeProfile({ ...value, updatedAt: new Date(Math.max(Date.now(), (Date.parse(state?.profile.updatedAt) || 0) + 1)).toISOString() }), pending: true }; persist(); notify(); return { ...state.profile }; },
+    set(value) {
+      if (state && sameProfile(state.profile, value)) return { ...state.profile };
+      revision++; state = { profile: normalizeProfile({ ...value, updatedAt: new Date(Math.max(Date.now(), (Date.parse(state?.profile.updatedAt) || 0) + 1)).toISOString() }), pending: true }; persist(); notify(); return { ...state.profile };
+    },
     markPublished(profile) { if (state?.profile.updatedAt === profile.updatedAt) { state.pending = false; persist(); } },
   };
 }

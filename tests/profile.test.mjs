@@ -14,6 +14,19 @@ test('profile allows only public fields and normalizes names and handles', () =>
   assert.equal(normalizeProfile(null).author,'Mi blog');
 });
 
+test('saving settings after editing the profile keeps the same revision and acknowledgement',async()=>{
+  const b=browser();const profile=initProfile({win:b.win});await profile.ready;
+  const edited=profile.set({author:'Ada',bio:'New biography'});
+  assert.equal(profile.pending(),true);
+  assert.deepEqual(profile.set({...edited,token:'never public',repo:'blog'}),edited);
+  profile.markPublished(edited);
+  assert.equal(profile.pending(),false);
+  assert.deepEqual(profile.set({...edited,owner:'writer'}),edited);
+  assert.equal(profile.pending(),false);
+  assert.notEqual(profile.set({...edited,bio:'Another edit'}).updatedAt,edited.updatedAt);
+  assert.equal(profile.pending(),true);
+});
+
 test('Pages rename preserves pending profile edits from the previous path',async()=>{
   const b=browser();const get=b.win.localStorage.getItem;b.win.localStorage.getItem=k=>get(k)??null;
   b.storage.set('blog-studio-profile-v1:/blog-studio/',JSON.stringify({profile:{author:'Existing author',bio:'Pending edits'},pending:true}));

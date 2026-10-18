@@ -41,6 +41,56 @@ test('profile save failures are reported without claiming publication', async ()
   await assert.rejects(unconfirmed.saveProfile({author:'Ada'}),/no confirmó/);
 });
 
+test('profile retries a transient conflict with a fresh uncached SHA', async () => {
+  const target={author:'Updated',updatedAt:'2026-10-18T12:00:00Z'};
+  let reads=0, writes=0;
+  const client=clientWith(async (_url,options)=>{
+    if(options.method!=='PUT'){
+      assert.equal(options.cache,'no-store');
+      reads++;
+      return response(200,{sha:`sha-${reads}`,content:encode({author:'Old',updatedAt:'2026-10-17T12:00:00Z'})});
+    }
+    writes++;
+    assert.equal(JSON.parse(options.body).sha,`sha-${writes}`);
+    return writes===1?response(409,{}):response(200,{commit:{sha:'saved'}});
+  });
+  assert.deepEqual(await client.saveProfile(target),{commitSha:'saved'});
+  assert.equal(reads,2);assert.equal(writes,2);
+});
+
+test('repeated profile saves across client instances create only one commit', async () => {
+  const target={author:'Updated',updatedAt:'2026-10-18T12:00:00Z'};
+  let stored=null,writes=0;
+  const fetchImpl=async (_url,options)=>{
+    if(options.method!=='PUT')return response(stored?200:404,stored?{sha:'saved',content:encode(stored)}:{});
+    writes++;stored=JSON.parse(atob(JSON.parse(options.body).content));
+    return response(200,{commit:{sha:'saved'}});
+  };
+  const results=await Promise.all([clientWith(fetchImpl).saveProfile(target),clientWith(fetchImpl).saveProfile({...target,updatedAt:'2026-10-18T12:01:00Z'})]);
+  assert.equal(writes,1);assert.equal(results[1].unchanged,true);
+});
+
+test('profile conflict never overwrites newer edits from another browser', async () => {
+  let reads=0,writes=0;
+  const client=clientWith(async (_url,options)=>{
+    if(options.method==='PUT'){writes++;return response(409,{});}
+    reads++;
+    return response(200,{sha:`sha-${reads}`,content:encode({author:reads===1?'Old':'Another browser',updatedAt:reads===1?'2026-10-17T12:00:00Z':'2026-10-19T12:00:00Z'})});
+  });
+  await assert.rejects(client.saveProfile({author:'My edit',updatedAt:'2026-10-18T12:00:00Z'}),/perfil más reciente/);
+  assert.equal(writes,1);
+});
+
+test('profile conflict retries are bounded', async () => {
+  let writes=0;
+  const client=clientWith(async (_url,options)=>{
+    if(options.method==='PUT'){writes++;return response(409,{});}
+    return response(404,{});
+  });
+  await assert.rejects(client.saveProfile({author:'Ada'}),/Vuelve a intentar/);
+  assert.equal(writes,3);
+});
+
 test('default fetch retains the browser global receiver for publication and status requests', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

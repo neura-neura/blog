@@ -1,5 +1,6 @@
-import { normalizeProfile } from './profile.js';
+import { normalizeProfile, sameProfile } from './profile.js';
 const API_ROOT = 'https://api.github.com';
+const profileSaves = new Map();
 
 const validSlug = (slug) => typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 
@@ -49,7 +50,9 @@ export class GitHubClient {
       409: 'El repositorio cambió al mismo tiempo. Vuelve a intentar la publicación.',
       422: 'GitHub no pudo guardar el archivo. Revisa el contenido y los permisos del token.',
     };
-    throw new Error(messages[response.status] || `GitHub respondió con el error ${response.status}.`);
+    const error = new Error(messages[response.status] || `GitHub respondió con el error ${response.status}.`);
+    error.status = response.status;
+    throw error;
   }
 
   async getPost(slug) {
@@ -126,19 +129,45 @@ export class GitHubClient {
     return { commitSha, slug, deleted: true };
   }
 
-  async saveProfile(value) {
+  saveProfile(value) {
+    const key = `${this.repoRoot}:${this.branch}`;
+    const task = (profileSaves.get(key) || Promise.resolve()).catch(() => {}).then(() => this.writeProfile(value));
+    profileSaves.set(key, task);
+    task.finally(() => { if (profileSaves.get(key) === task) profileSaves.delete(key); }).catch(() => {});
+    return task;
+  }
+
+  async writeProfile(value) {
     const profile = normalizeProfile(value);
-    const existing = await this.request(`/contents/blog-profile.json?ref=${encodeURIComponent(this.branch)}`);
-    const result = await this.request('/contents/blog-profile.json', {
-      method: 'PUT',
-      body: JSON.stringify({
-        message: 'Update blog profile', branch: this.branch,
-        content: encodeBase64(JSON.stringify(profile, null, 2)),
-        ...(existing?.sha ? { sha: existing.sha } : {}),
-      }),
-    });
-    if (!result?.commit?.sha) throw new Error('GitHub no confirmó el perfil. Vuelve a guardar la configuración.');
-    return { commitSha: result.commit.sha };
+    let initialSha;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await this.request(`/contents/blog-profile.json?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
+      let remote;
+      if (existing?.content) remote = normalizeProfile(JSON.parse(decodeBase64(existing.content)));
+      if (remote && sameProfile(remote, profile)) return { commitSha: null, unchanged: true };
+      if (attempt === 0) initialSha = existing?.sha;
+      // Retry branch movement, but never replace a newer profile edited elsewhere.
+      if (remote && (Date.parse(remote.updatedAt) || 0) > (Date.parse(profile.updatedAt) || 0)) {
+        throw new Error('Hay un perfil más reciente en GitHub. Revisa los cambios antes de volver a guardar.');
+      }
+      if (attempt > 0 && existing?.sha !== initialSha && !remote) {
+        throw new Error('El perfil cambió en GitHub y no se pudo comprobar su contenido. Tus cambios siguen guardados en este navegador.');
+      }
+      try {
+      const result = await this.request('/contents/blog-profile.json', {
+        method: 'PUT',
+        body: JSON.stringify({
+          message: 'Update blog profile', branch: this.branch,
+          content: encodeBase64(JSON.stringify(profile, null, 2)),
+          ...(existing?.sha ? { sha: existing.sha } : {}),
+        }),
+      });
+      if (!result?.commit?.sha) throw new Error('GitHub no confirmó el perfil. Vuelve a guardar la configuración.');
+      return { commitSha: result.commit.sha };
+      } catch (error) {
+        if (error.status !== 409 || attempt === 2) throw error;
+      }
+    }
   }
 
   async assertEditorAccess() {
