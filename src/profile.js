@@ -1,7 +1,13 @@
 // Public profile only. Connection settings and credentials never enter this object.
+export function profileBannerUrl(value) {
+  if(typeof value!=='string'||value.length>3*1024*1024)return '';
+  const url=value.trim();
+  if(/^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(url))return url;
+  try{return new URL(url).protocol==='https:'?new URL(url).href:'';}catch{return '';}
+}
 export function normalizeProfile(value = {}) {
   const text = (key, limit) => typeof value?.[key] === 'string' ? value[key].trim().slice(0, limit) : '';
-  return { author: text('author', 100) || 'Mi blog', bio: text('bio', 500), handle: text('handle', 100).replace(/^@+/, ''), updatedAt: text('updatedAt', 40) };
+  return { author: text('author', 100) || 'Mi blog', bio: text('bio', 500), handle: text('handle', 100).replace(/^@+/, ''), banner:profileBannerUrl(value?.banner), updatedAt: text('updatedAt', 40) };
 }
 
 export function applyProfileDOM(doc, value) {
@@ -9,6 +15,11 @@ export function applyProfileDOM(doc, value) {
   for (const node of doc.querySelectorAll('[data-profile]')) {
     const field = node.dataset.profile;
     node.textContent = field === 'initial' ? Array.from(profile.author)[0] : profile[field] || '';
+  }
+  for(const node of doc.querySelectorAll('[data-profile-banner]')){
+    if(!profile.banner){node.replaceChildren();continue;}
+    const image=doc.createElement('img');image.src=profile.banner;image.alt='';image.width=600;image.height=200;
+    node.replaceChildren(image);
   }
   if (doc.querySelector('[data-profile-title]')) doc.title = `Artículos · ${profile.author}`;
   const description = doc.querySelector('meta[data-profile-description]');

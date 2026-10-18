@@ -13,3 +13,12 @@ test('zoom narrows the crop and centering keeps the image midpoint',()=>{
   const crop=cropGeometry(720,1052,2,.5,.5);
   assert.equal(crop.width,360);assert.equal(crop.x+crop.width/2,360);assert.equal(crop.y+crop.height/2,526);
 });
+
+test('blog banners use a separate 3:1 crop within image bounds',()=>{
+  for(const [w,h] of [[720,1052],[1800,720],[800,800],[3000,500]])for(const zoom of [1,2,3]){
+    const crop=cropGeometry(w,h,zoom,.5,.5,3);
+    assert.equal(crop.width/crop.height,3);
+    assert.ok(crop.x>=0&&crop.y>=0&&crop.x+crop.width<=w&&crop.y+crop.height<=h);
+    assert.equal(crop.x+crop.width/2,w/2);assert.equal(crop.y+crop.height/2,h/2);
+  }
+});

@@ -33,11 +33,27 @@ test('one public profile overrides stale authors throughout existing posts, home
     assert.doesNotMatch(html,/Autor anterior|Otro anterior|Bio anterior|private-secret|private-repo/);
   }
   const publicProfile=JSON.parse(await readFile(path.join(outDir,'profile.json'),'utf8'));
-  assert.deepEqual(publicProfile,{author:profile.author,bio:profile.bio,handle:'nuevo',updatedAt:profile.updatedAt});
+  assert.deepEqual(publicProfile,{author:profile.author,bio:profile.bio,handle:'nuevo',banner:'',updatedAt:profile.updatedAt});
   const posts=JSON.parse(await readFile(path.join(outDir,'posts.json'),'utf8'));
   assert.ok(posts.every(p=>p.author===profile.author&&p.authorBio===profile.bio&&p.authorHandle==='nuevo'));
   const reader=await readFile(path.join(outDir,'reader-appearance.js'),'utf8');
   assert.match(reader,/baseUrl:new URL\('\.\/',import.meta.url\)/,'articles must fetch the profile from the site root');
+});
+
+test('blog banner is independent from article covers and stays neutral unless configured',async t=>{
+  const cover='https://example.test/article.webp';
+  const empty=await fixture(t,{one:post({cover})});
+  const emptyIndex=await readFile(path.join(empty.outDir,'index.html'),'utf8');
+  assert.match(emptyIndex,/<div class="profile-banner" data-profile-banner><\/div>/);
+  assert.match(emptyIndex,/class="post-cover" src="https:\/\/example.test\/article.webp"/);
+  const banner='https://example.test/profile.webp';
+  const configured=await fixture(t,{one:post({cover})},{author:'Ada',banner});
+  const index=await readFile(path.join(configured.outDir,'index.html'),'utf8');
+  assert.match(index,/<div class="profile-banner" data-profile-banner><img src="https:\/\/example.test\/profile.webp"/);
+  assert.match(index,/class="post-cover" src="https:\/\/example.test\/article.webp"/);
+  const article=await readFile(path.join(configured.outDir,'posts/hello-world.html'),'utf8');
+  assert.match(article,/src="https:\/\/example.test\/article.webp"/);
+  assert.doesNotMatch(article,/src="https:\/\/example.test\/profile.webp"/);
 });
 
 test('renders published posts safely and emits linked public outputs', async (t) => {

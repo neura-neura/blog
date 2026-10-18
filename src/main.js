@@ -30,7 +30,7 @@ const button = (name,label,action,extra='') => `<button type="button" title="${l
 const STORAGE='blog-studio-drafts-v1';
 let drafts; try { drafts=JSON.parse(localStorage.getItem(STORAGE)||'[]'); if(!Array.isArray(drafts)) drafts=[]; } catch { drafts=[]; }
 let settings; try {settings=JSON.parse(localStorage.getItem('blog-studio-settings')||'{}');} catch {settings={};}
-const legacyProfile=typeof settings.author==='string'?{author:settings.author,bio:settings.bio||'',handle:settings.handle||settings.owner}:null;
+const legacyProfile=typeof settings.author==='string'?{author:settings.author,bio:settings.bio||'',handle:settings.handle||settings.owner,banner:settings.banner||''}:null;
 settings={owner:'neura-neura',repo:'blog-studio',author:'林知夏',...settings};
 const tokenStore=initTokenStore({onChange:value=>{token=value;renderConnectionStatus();const input=$('#dialog-form [name=token]');if(input)input.value=value;if(!value)setTimeout(()=>location.reload(),0);}});
 let token=tokenStore.get();
@@ -87,7 +87,7 @@ function renderEditorProfile(){
   applyProfileDOM(document,{author:settings.author,bio:settings.bio,handle:settings.handle||settings.owner});
 }
 function acceptProfile(value){
-  settings={...settings,author:value.author,bio:value.bio,handle:value.handle};
+  settings={...settings,author:value.author,bio:value.bio,handle:value.handle,banner:value.banner};
   localStorage.setItem('blog-studio-settings',JSON.stringify(settings));
   drafts=drafts.map(d=>({...d,author:value.author,authorBio:value.bio,authorHandle:value.handle}));
   localStorage.setItem(STORAGE,JSON.stringify(drafts));
@@ -102,8 +102,9 @@ function renderConnectionStatus(){
 }
 function connectionMarkup(){return `<div id="connection-status" class="connection-status ${token?'is-connected':''}" role="status"><span class="connection-status-icon">${icon(token?'check':'circle-help')}</span><div><strong>${token?'Token guardado en este navegador':'Sin token de GitHub'}</strong><p>${token?'Disponible para publicar. GitHub comprueba sus permisos al guardar o publicar.':'Conecta tu token para publicar artículos y actualizar tu perfil en el sitio público.'}</p></div></div>`;}
 function showSettings(){
-  form('Tu blog',`<button type="button" class="outline wide" data-action="appearance">Apariencia: colores, texto y fondo</button>${connectionMarkup()}<p>Tu perfil se aplica a la portada y a todos tus artículos, incluidos los ya publicados.</p>${field('Nombre del autor','author',settings.author,'text','required maxlength="100"')}${field('Nombre de usuario público','handle',settings.handle||settings.owner,'text','maxlength="100"')}${field('Presentación del autor y del blog','bio',settings.bio||'','text','maxlength="500"')}<p class="hint">Al guardar, los cambios aparecen en este navegador al instante. Con tu token conectado también se actualiza el sitio público cuando GitHub termina el despliegue.</p>${field('Usuario de GitHub','owner',settings.owner,'text','required')}${field('Repositorio','repo',settings.repo,'text','required')}${field('Token de GitHub','token',token,'password','autocomplete="off" placeholder="github_pat_…"')}<p class="hint">Usa un token de acceso específico para este repositorio, con permiso <b>Contents: Read and write</b>. Se guarda en este navegador y se comparte entre sus pestañas. Permanece al cerrarlo hasta que lo desconectes o borres los datos del sitio. Los borradores se guardan en este navegador.</p><a target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new?name=Blog%20Studio&amp;target_name=neura-neura&amp;expires_in=90&amp;contents=write&amp;actions=read">Crear token en GitHub ↗</a><label class="check"><input type="checkbox" name="disconnect"> Desconectar y borrar el token de este navegador</label>`,'Guardar configuración',async data=>{
-    const next={owner:String(data.get('owner')).trim(),repo:String(data.get('repo')).trim(),author:String(data.get('author')).trim(),bio:String(data.get('bio')).trim(),handle:String(data.get('handle')).trim().replace(/^@+/, '')};
+  let banner=settings.banner||'',bannerSource=banner,cropState={};
+  form('Tu blog',`<button type="button" class="outline wide" data-action="appearance">Apariencia: colores, texto y fondo</button>${connectionMarkup()}<p>Tu perfil se aplica a la portada y a todos tus artículos, incluidos los ya publicados.</p><section class="blog-cover-settings" aria-label="Portada del blog"><h3>Portada del blog</h3><div id="blog-cover-preview" class="blog-cover-preview"></div><p class="hint">Esta imagen es independiente de las portadas de tus artículos. Proporción 3:1.</p><div class="blog-cover-controls"><button type="button" class="outline" id="blog-cover-upload">Subir portada</button><button type="button" class="outline" id="blog-cover-adjust">Ajustar</button><button type="button" class="outline" id="blog-cover-remove">Quitar</button></div><input type="file" id="blog-cover-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><div id="blog-cover-crop" hidden>${cropMarkup}<button type="button" class="outline" id="blog-cover-cancel">Cancelar ajuste</button></div><p id="blog-cover-error" role="alert" hidden></p></section>${field('Nombre del autor','author',settings.author,'text','required maxlength="100"')}${field('Nombre de usuario público','handle',settings.handle||settings.owner,'text','maxlength="100"')}${field('Presentación del autor y del blog','bio',settings.bio||'','text','maxlength="500"')}<p class="hint">Al guardar, los cambios aparecen en este navegador al instante. Con tu token conectado también se actualiza el sitio público cuando GitHub termina el despliegue.</p>${field('Usuario de GitHub','owner',settings.owner,'text','required')}${field('Repositorio','repo',settings.repo,'text','required')}${field('Token de GitHub','token',token,'password','autocomplete="off" placeholder="github_pat_…"')}<p class="hint">Usa un token de acceso específico para este repositorio, con permiso <b>Contents: Read and write</b>. Se guarda en este navegador y se comparte entre sus pestañas. Permanece al cerrarlo hasta que lo desconectes o borres los datos del sitio. Los borradores se guardan en este navegador.</p><a target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new?name=Blog%20Studio&amp;target_name=neura-neura&amp;expires_in=90&amp;contents=write&amp;actions=read">Crear token en GitHub ↗</a><label class="check"><input type="checkbox" name="disconnect"> Desconectar y borrar el token de este navegador</label>`,'Guardar configuración',async data=>{
+    const next={banner,owner:String(data.get('owner')).trim(),repo:String(data.get('repo')).trim(),author:String(data.get('author')).trim(),bio:String(data.get('bio')).trim(),handle:String(data.get('handle')).trim().replace(/^@+/, '')};
     if(!/^[\w.-]+$/.test(next.owner)||!/^[\w.-]+$/.test(next.repo))throw Error('Usuario o repositorio no válido.');
     const nextToken=data.get('disconnect')?'':String(data.get('token')).trim();
     token=tokenStore.set(nextToken);settings=next;renderConnectionStatus();
@@ -114,6 +115,31 @@ function showSettings(){
     try{await client().saveProfile(value);blogProfile.markPublished(value);close();toast('Perfil guardado. GitHub está actualizando la portada y todos los artículos.');}
     catch(error){submit.disabled=false;submit.textContent='Reintentar actualización';throw Error('Tus datos quedaron guardados en este navegador. '+error.message);}
   });
+  const preview=$('#blog-cover-preview'),crop=$('#blog-cover-crop'),upload=$('#blog-cover-file'),error=$('#blog-cover-error');
+  function previewBanner(){
+    preview.replaceChildren();
+    if(banner){const image=document.createElement('img');image.src=banner;image.alt='Portada del blog';preview.append(image);}else preview.textContent='Sin portada';
+    $('#blog-cover-adjust').hidden=!banner;$('#blog-cover-remove').hidden=!banner;
+    $('#blog-cover-upload').textContent=banner?'Cambiar portada':'Subir portada';
+  }
+  let observer;
+  function finishCrop(){crop.hidden=true;observer?.disconnect();$('#dialog-form [type="submit"]').disabled=false;}
+  async function adjustBanner(){
+    observer?.disconnect();crop.hidden=false;error.hidden=true;$('#dialog-form [type="submit"]').disabled=true;
+    try{observer=await mountCoverCrop(crop,bannerSource,(url,state)=>{banner=url;cropState=state;finishCrop();previewBanner();},cropState,3);}
+    catch(e){finishCrop();error.textContent='No pudimos abrir la imagen. Prueba con otra.';error.hidden=false;}
+  }
+  $('#blog-cover-upload').onclick=()=>upload.click();
+  $('#blog-cover-adjust').onclick=adjustBanner;
+  $('#blog-cover-remove').onclick=()=>{banner='';bannerSource='';cropState={};finishCrop();previewBanner();};
+  $('#blog-cover-cancel').onclick=()=>{bannerSource=banner;cropState={};finishCrop();};
+  upload.onchange=async()=>{
+    const file=upload.files[0];upload.value='';if(!file)return;
+    if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)||file.size>2*1024*1024){error.textContent='Usa una imagen PNG, JPEG, GIF o WebP de menos de 2 MB.';error.hidden=false;return;}
+    try{bannerSource=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});cropState={};await adjustBanner();}
+    catch{error.textContent='No pudimos leer la imagen.';error.hidden=false;}
+  };
+  previewBanner();
 }
 async function showDrafts(search=false){save();modal(search?'Buscar artículos':'Tus artículos',`<div class="tabs"><b>Borradores locales</b><span>Solo en este navegador</span></div><div class="draft-tools"><button class="outline" data-action="new">${icon('square-pen')} Nuevo artículo</button><label class="draft-search">${icon('search')}<input id="draft-search" type="search" aria-label="Buscar artículos" placeholder="Buscar por título…"></label></div><div id="draft-list"></div><button class="outline wide" data-action="load-published">${icon('cloud-download')} Cargar publicados desde GitHub</button><div id="published-list"></div>`);const render=()=>{$('#draft-list').innerHTML=drafts.filter(d=>d.title.toLowerCase().includes($('#draft-search').value.toLowerCase())).map(d=>`<button class="draft-item" data-draft="${esc(d.id)}"><strong>${esc(d.title||'Sin título')}</strong><span>${d.status==='published'?'Publicado · ':''}${new Date(d.updatedAt).toLocaleDateString('es-MX')} · ${(d.markdown||'').split(/\s+/).filter(Boolean).length} palabras</span></button>`).join('')||(drafts.length?'<p class="hint">No hay artículos que coincidan.</p>':'<p class="hint">Todavía no tienes borradores.</p>');};render();$('#draft-search').oninput=render;if(search)$('#draft-search').focus();}
 function client(){if(!token)throw Error('Conecta tu token de GitHub en Configuración para publicar.');return new GitHubClient({...settings,token});}
