@@ -72,3 +72,17 @@ test('private save validates IDs and does not claim success on a failed write', 
   });
   await assert.rejects(api.saveDraft(draft), /no confirmó/);
 });
+
+test('cloud refresh and version checks bypass cached Contents API responses', async () => {
+  const calls=[];
+  const saved={...draft,privateSavedAt:'latest'};
+  const api=client(async(url,options)=>{
+    calls.push({url,options});
+    if(url.endsWith('/blog-drafts'))return response(200,{private:true,permissions:{push:true}});
+    if(url.includes('/draft-one.json'))return response(200,{sha:'latest-blob',content:encode(saved)});
+    return response(200,[{type:'file',name:'draft-one.json'}]);
+  });
+  await api.listDrafts();
+  await assert.rejects(api.saveDraft(draft,'old'),/otro dispositivo/);
+  assert.ok(calls.filter(call=>call.url.includes('/contents/')).every(call=>call.options.cache==='no-store'));
+});

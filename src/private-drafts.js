@@ -32,11 +32,11 @@ export class PrivateDraftClient extends GitHubClient {
 
   async listDrafts() {
     await this.assertPrivate();
-    const entries = await this.request(`/contents/drafts?ref=${encodeURIComponent(this.branch)}`);
+    const entries = await this.request(`/contents/drafts?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
     if (!entries) return [];
     if (!Array.isArray(entries)) throw Error('No se pudieron leer los borradores en la nube.');
     return Promise.all(entries.filter(file => file.type === 'file' && validId(file.name.replace(/\.json$/, '')) && file.name.endsWith('.json')).map(async file => {
-      const entry = await this.request(`/contents/drafts/${encodeURIComponent(file.name)}?ref=${encodeURIComponent(this.branch)}`);
+      const entry = await this.request(`/contents/drafts/${encodeURIComponent(file.name)}?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
       return this.readDraft(entry);
     })).then(drafts => drafts.filter(Boolean));
   }
@@ -45,7 +45,7 @@ export class PrivateDraftClient extends GitHubClient {
     if (!validId(draft?.id)) throw Error('El borrador necesita un identificador válido.');
     await this.assertPrivate();
     const path = `/contents/drafts/${encodeURIComponent(draft.id)}.json`;
-    const existing = await this.request(`${path}?ref=${encodeURIComponent(this.branch)}`);
+    const existing = await this.request(`${path}?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
     if (existing) {
       const remote = await this.readDraft(existing);
       if (remote.privateSavedAt !== expectedVersion) throw Error('Este borrador cambió en otro dispositivo. Abre Borradores y recupera la versión más reciente antes de volver a guardarlo.');

@@ -1,4 +1,4 @@
-import { Editor, Node, mergeAttributes } from '@tiptap/core';
+import { Editor, Node, mergeAttributes, generateJSON } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BodyImage } from './body-image.js';
 import { openBodyImageEditor } from './body-image-editor.js';
@@ -26,6 +26,7 @@ import { hasDraftContent, storeDraft } from './drafts.js';
 import { createPublishedLibrary, publishedArticles } from './published-posts.js';
 import { PrivateDraftClient } from './private-drafts.js';
 import { draftEntries } from './draft-list.js';
+import { createDraftBodyTracker, sameDraftContent, normalizedEditorDocument } from './draft-content.js';
 
 const icons = {Feather, House, FilePenLine, Search, Image:ImageIcon, Upload, Download, Settings2, CircleHelp, SquarePen, ArrowLeft, Maximize2, Ellipsis, Bold, Italic, Strikethrough, Quote, List, ListOrdered, Link, Smile, ChevronDown, ImagePlus, Check, X, FileCode, Code, Archive, CloudDownload, Film, Minus, Sigma, Table:TableIcon, ListChecks, Undo2, Redo2, ImageOff, Trash2, CloudOff, CloudUpload, ArrowUpRight};
 const $ = s => document.querySelector(s);
@@ -51,12 +52,16 @@ const Media=Node.create({name:'media',group:'block',atom:true,addAttributes(){re
 const MathBlock=Node.create({name:'mathBlock',group:'block',atom:true,addAttributes(){return {latex:{default:''}};},parseHTML(){return [{tag:'div[data-latex]',getAttrs:e=>({latex:e.getAttribute('data-latex')})}];},renderHTML({HTMLAttributes}){return ['div',{'data-latex':HTMLAttributes.latex,class:'math-block'},HTMLAttributes.latex];},renderMarkdown(node){return `<div data-latex="${esc(node.attrs.latex)}" class="math-block">${esc(node.attrs.latex)}</div>`;},addNodeView(){return ({node})=>{const dom=document.createElement('div');dom.className='math-block';dom.dataset.latex=node.attrs.latex;katex.render(node.attrs.latex,dom,{throwOnError:false,displayMode:true});return {dom};};}});
 function markdownWithMathBlocks(markdown){return markdown.replace(/(^|\n)[ \t]*\$\$[ \t]*\n?([\s\S]*?)\n?[ \t]*\$\$[ \t]*(?=\n|$)/g,(_match,leading,latex)=>`${leading}<div data-latex="${esc(latex.trim())}" class="math-block">${esc(latex.trim())}</div>`);}
 const editor=new Editor({element:$('#editor'),extensions:[StarterKit.configure({link:{openOnClick:false,HTMLAttributes:{rel:'noopener noreferrer'}}}),BodyImage.configure({allowBase64:true,onEdit:openBodyImageEditor}),Placeholder.configure({placeholder:'Empieza a escribir o pega tu texto Markdown…'}),TableKit,TaskList,TaskItem.configure({nested:true}),Markdown,Media,MathBlock],content:'',editorProps:{attributes:{'aria-label':'Contenido del artículo',role:'textbox','aria-multiline':'true'},handlePaste(view,event){const text=event.clipboardData?.getData('text/plain');const files=event.clipboardData?.files;if(files?.length&&files[0].type.startsWith('image/')){readImage(files[0],false);return true;}if(text&&(/(^|\n)(#{1,6} |[-*+] |\d+\. |>|```|\|)|\*\*|\[[^\]]+\]\(|!\[|~~|\$\$/.test(text))){event.preventDefault();editor.commands.insertContent(editor.markdown.parse(markdownWithMathBlocks(text)));return true;}return false;},handleDrop(view,event){const file=event.dataTransfer?.files?.[0];if(file?.type.startsWith('image/')){event.preventDefault();readImage(file,false);return true;}return false;}},onUpdate(){scheduleSave();updateCounts();},onSelectionUpdate(){updateToolbar();}});
+const bodyTracker=createDraftBodyTracker(editor,markdownWithMathBlocks);
+const normalizedBodies=new Map();
+function normalizeDraftHTML(html){if(!normalizedBodies.has(html)){if(normalizedBodies.size>=20)normalizedBodies.clear();normalizedBodies.set(html,normalizedEditorDocument(generateJSON(html,editor.extensionManager.extensions)));}return normalizedBodies.get(html);}
+const equalDrafts=(a,b)=>sameDraftContent(a,b,normalizeDraftHTML);
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('visible');clearTimeout(timer);timer=setTimeout(()=>$('#toast').classList.remove('visible'),5000);}
 function refreshIcons(){createIcons({icons,attrs:{'stroke-width':1.8}});}
 function updateCounts(){const {words,minutes}=readingStats(editor.getText());$('#word-count').textContent=`${words} palabras`;$('#reading').textContent=`${minutes} min de lectura`;}
 function updateToolbar(){for(const [a,n] of [['bold','bold'],['italic','italic'],['strike','strike'],['quote','blockquote'],['bullet','bulletList'],['ordered','orderedList']]){const b=$(`[data-action="${a}"]`);b.classList.toggle('active',editor.isActive(n));b.setAttribute('aria-pressed',editor.isActive(n));}$('#text-style').value=[1,2,3].find(level=>editor.isActive('heading',{level}))||'p';}
 let saveTimeout;
-function scheduleSave(){if(sourceMode){current.markdown=$('#markdown-source').value;}else {current.markdown=editor.getMarkdown();current.html=editor.getHTML();}current.title=$('#article-title').value;current.updatedAt=new Date().toISOString();$('#saved').textContent='Guardando…';clearTimeout(saveTimeout);saveTimeout=setTimeout(save,350);}
+function scheduleSave(){syncCurrent();current.updatedAt=new Date().toISOString();$('#saved').textContent='Guardando…';clearTimeout(saveTimeout);saveTimeout=setTimeout(save,350);}
 function renderArticles(){
   const list=$('#articles-list');
   if(articleTab==='draft'){list.innerHTML=draftListMarkup();updateArticleTabs();return;}
@@ -73,8 +78,8 @@ function renderArticles(){
 }
 function updateArticleTabs(){for(const b of document.querySelectorAll('.article-tabs button'))b.setAttribute('aria-selected',b.dataset.action===`panel-${articleTab==='draft'?'drafts':articleTab}`);}
 function save(options={}){clearTimeout(saveTimeout);syncCurrent();updateCounts();drafts=storeDraft(drafts,current,options);try{localStorage.setItem(STORAGE,JSON.stringify(drafts));$('#saved').textContent=drafts.some(d=>d.id===current.id)?'Guardado en este navegador':'Sin cambios';renderArticles();}catch{$('#saved').textContent='No se pudo guardar';toast('El almacenamiento está lleno. Exporta tu artículo para conservarlo.');}}
-function syncCurrent(){if(sourceMode){current.markdown=$('#markdown-source').value;editor.commands.setContent(markdownWithMathBlocks(current.markdown),{contentType:'markdown',emitUpdate:false});current.html=editor.getHTML();}else{current.markdown=editor.getMarkdown();current.html=editor.getHTML();}current.title=$('#article-title').value;}
-function load(draft){clearTimeout(saveTimeout);current={...draft};sourceMode=false;preview=false;$('#markdown-source').hidden=true;$('#editor').hidden=false;$('#preview').hidden=true;$('#article-title').readOnly=false;$('#article-title').value=current.title;resizeTitle();editor.commands.setContent(current.html||markdownWithMathBlocks(current.markdown||''),{contentType:current.html?'html':'markdown',emitUpdate:false});editor.setEditable(true,false);renderEditorProfile();renderCover();updateCounts();updateToolbar();$('.badge').textContent=current.status==='published'?'Publicado':'Borrador';$('.save-state').classList.toggle('is-published',current.status==='published');$('[data-action="publish"]').textContent=current.status==='published'?'Actualizar':'Publicar';$('[data-action="preview"]').textContent='Vista previa';$('.toolbar').classList.remove('previewing');$('#saved').textContent=drafts.some(d=>d.id===current.id)?'Guardado en este navegador':'Sin cambios';renderArticles();refreshIcons();}
+function syncCurrent(){bodyTracker.sync(current,sourceMode?$('#markdown-source').value:undefined);current.title=$('#article-title').value;}
+function load(draft){clearTimeout(saveTimeout);current={...draft};sourceMode=false;preview=false;$('#markdown-source').hidden=true;$('#editor').hidden=false;$('#preview').hidden=true;$('#article-title').readOnly=false;$('#article-title').value=current.title;resizeTitle();editor.commands.setContent(current.html||markdownWithMathBlocks(current.markdown||''),{contentType:current.html?'html':'markdown',emitUpdate:false});bodyTracker.reset(current);editor.setEditable(true,false);renderEditorProfile();renderCover();updateCounts();updateToolbar();$('.badge').textContent=current.status==='published'?'Publicado':'Borrador';$('.save-state').classList.toggle('is-published',current.status==='published');$('[data-action="publish"]').textContent=current.status==='published'?'Actualizar':'Publicar';$('[data-action="preview"]').textContent='Vista previa';$('.toolbar').classList.remove('previewing');$('#saved').textContent=drafts.some(d=>d.id===current.id)?'Guardado en este navegador':'Sin cambios';renderArticles();refreshIcons();}
 function renderCover(){const cover=$('#cover');cover.style.backgroundImage=current.cover?`url("${current.cover.replace(/["\\\n\r]/g,'')}")`:'';cover.classList.toggle('has-cover',!!current.cover);cover.querySelector('span').hidden=!!current.cover;cover.querySelector('button').title=current.cover?'Cambiar portada':'Añadir portada';}
 function resizeTitle(){$('#article-title').style.height='auto';$('#article-title').style.height=$('#article-title').scrollHeight+'px';}
 function modal(title,body){$('#modal').classList.toggle('media-dialog',title==='Editar portada');$('#modal-title').textContent=title;$('#modal-body').innerHTML=body;$('#modal').showModal();refreshIcons();}
@@ -82,7 +87,7 @@ function close(){$('#modal').close();}
 function form(title,fields,submit,onSubmit){modal(title,`<form id="dialog-form">${fields}<p class="form-error" role="alert" hidden></p><button class="primary wide" type="submit">${submit}</button></form>`);$('#dialog-form').onsubmit=async e=>{e.preventDefault();const errorBox=e.target.querySelector('.form-error');errorBox.hidden=true;try{await onSubmit(new FormData(e.target));}catch(error){errorBox.textContent=error.message;errorBox.hidden=false;toast(error.message);}};}
 const field=(label,name,value='',type='text',extra='')=>`<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" ${extra}></label>`;
 function urlForm(title,callback,kind='URL'){form(title,field(kind,'url','','url','required placeholder="https://…"')+field('Texto alternativo / descripción','alt'),'Insertar',data=>{const url=data.get('url');if(!/^https?:\/\//i.test(url))throw Error('Usa un enlace HTTPS o HTTP válido.');callback(url,data.get('alt'));close();});}
-function syncSource(){if(sourceMode){editor.commands.setContent(markdownWithMathBlocks($('#markdown-source').value),{contentType:'markdown',emitUpdate:false});current.html=editor.getHTML();current.markdown=editor.getMarkdown();}else{current.html=editor.getHTML();current.markdown=editor.getMarkdown();}}
+function syncSource(){syncCurrent();}
 function togglePreview(){syncSource();preview=!preview;editor.setEditable(!preview);$('#editor').hidden=preview||sourceMode;$('#markdown-source').hidden=preview||!sourceMode;$('#preview').hidden=!preview;$('#article-title').readOnly=preview;$('#preview').innerHTML=DOMPurify.sanitize(editor.getHTML(),{ADD_TAGS:['video','audio'],ADD_ATTR:['controls']});$('#preview').querySelectorAll('[data-latex]').forEach(el=>katex.render(el.dataset.latex,el,{throwOnError:false,displayMode:true}));$('[data-action="preview"]').textContent=preview?'Volver a editar':'Vista previa';$('.toolbar').classList.toggle('previewing',preview);$('.badge').textContent=preview?'Vista previa':current.status==='published'?'Publicado':'Borrador';}
 function exportFile(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function publicImageHTML(html){const node=document.createElement('div');node.innerHTML=html;node.querySelectorAll('[data-original-src],[data-image-crop]').forEach(el=>{el.removeAttribute('data-original-src');el.removeAttribute('data-image-crop');});return node.innerHTML;}
@@ -147,7 +152,7 @@ function client(){if(!token)throw Error('Conecta tu token de GitHub en Configura
 function privateClient(){if(!token)throw Error('Conecta tu token de GitHub para acceder a tus borradores en la nube.');return new PrivateDraftClient({...settings,token});}
 function draftListMarkup(query=''){
   const {posts,loading,error}=privateLibrary.state();
-  const entries=draftEntries(drafts,posts).filter(({draft})=>draft.title.toLowerCase().includes(query.toLowerCase()));
+  const entries=draftEntries(drafts,posts,equalDrafts).filter(({draft})=>draft.title.toLowerCase().includes(query.toLowerCase()));
   return `${entries.map(({draft:d,remoteOnly,storage})=>`<button class="article-item ${d.id===current.id?'selected':''}" ${remoteOnly?`data-private="${esc(d.id)}"`:`data-draft="${esc(d.id)}"`}><strong>${esc(d.title||'Sin título')}</strong><span>${esc(storage)}</span><span>${new Date(d.updatedAt||d.privateSavedAt).toLocaleDateString('es-MX')}</span></button>`).join('')||(!loading?'<p class="panel-empty">No hay borradores que mostrar.</p>':'')}${loading?'<p class="panel-empty" role="status">Buscando borradores en la nube…</p>':''}${error?`<div class="panel-empty" role="status"><p>No se pudieron consultar los borradores en la nube. Tus borradores locales siguen disponibles.</p><button class="outline" data-action="retry-private">Reintentar</button><button class="outline" data-action="private-access">Revisar acceso</button></div>`:''}`;
 }
 function privateAccess(){
@@ -169,7 +174,7 @@ function openPrivateDraft(id){
   const remote=privateLibrary.state().posts.find(d=>d.id===id);if(!remote)return;
   save();
   const local=drafts.find(d=>d.id===id);
-  const differs=local&&['title','markdown','html','cover'].some(key=>(local[key]||'')!==(remote[key]||''));
+  const differs=local&&!equalDrafts(local,remote);
   const restore=()=>{
     if(differs){
       const backup=storeDraft(drafts,{...local,id:crypto.randomUUID(),slug:'',status:'draft',title:`${local.title||'Sin título'} (copia local)`,privateSavedAt:undefined});
