@@ -5,14 +5,13 @@ import { PALETTE, DEFAULT_APPEARANCE, APPEARANCE_KEY, normalizeAppearance, appea
 test('appearance rejects corrupt preferences and unknown options', () => {
   for(const value of [null, [], 'bad', {color:'red',size:99,background:'url(x)',system:'true'}]) assert.deepEqual(normalizeAppearance(value),DEFAULT_APPEARANCE);
 });
-test('original X colors retain white labels, pastels retain dark labels in both themes', () => {
+test('all original and pastel accents retain white labels in both themes', () => {
   assert.equal(new Set(PALETTE.map(c=>c.hex)).size,12);
   for(const color of PALETTE) for(const background of ['light','dark']) {
     const tokens=appearanceTokens({color:color.id,background});
     assert.equal(tokens['--blue'],color.hex);
-    assert.equal(tokens['--on-accent'],color.id.endsWith('-pastel') ? '#0f1419' : '#ffffff');
+    assert.equal(tokens['--on-accent'],'#ffffff');
     if(color.id.endsWith('-pastel')) {
-      assert.ok(contrast(tokens['--blue'],tokens['--on-accent'])>=4.5,color.id);
       assert.ok(contrast(tokens['--link'],tokens['--bg'])>=4.5,color.id);
     } else assert.equal(tokens['--link'],color.hex);
     assert.notEqual(tokens['--accent-hover'],tokens['--blue']);

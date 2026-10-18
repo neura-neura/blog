@@ -10,7 +10,7 @@ export const COLORS = [
 const rgb = hex => hex.slice(1).match(/../g).map(n => parseInt(n, 16));
 const hex = channels => '#' + channels.map(n => Math.round(n).toString(16).padStart(2, '0')).join('');
 export const PALETTE = [...COLORS, ...COLORS.map(c => ({id: `${c.id}-pastel`, name: `${c.name} pastel`, hex: hex(rgb(c.hex).map(n => n * .4 + 255 * .6))}))];
-export const accentForeground = color => color.endsWith('-pastel') ? '#0f1419' : '#ffffff';
+export const accentForeground = () => '#ffffff';
 export const FONT_SIZES = [13, 14, 15, 17, 18];
 export const DEFAULT_APPEARANCE = { color: 'blue', size: 2, background: 'light', system: false };
 export function normalizeAppearance(value = {}) {
