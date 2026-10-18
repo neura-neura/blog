@@ -11,6 +11,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { createIcons, Feather, House, FilePenLine, Search, Image as ImageIcon, Upload, Download, Settings2, CircleHelp, SquarePen, ArrowLeft, Maximize2, Ellipsis, Bold, Italic, Strikethrough, Quote, List, ListOrdered, Link, Smile, ChevronDown, ImagePlus, Check, X, FileCode, Code, Archive, CloudDownload, Film, Minus, Sigma, Table as TableIcon, ListChecks, Undo2, Redo2, ImageOff, Trash2, CloudOff, CloudUpload, ArrowUpRight } from 'lucide';
 import { GitHubClient } from './github.js';
+import { initTokenStore } from './token-store.js';
 import { initProfile, applyProfileDOM } from './profile.js';
 import './style.css';
 import './appearance.css';
@@ -31,7 +32,8 @@ let drafts; try { drafts=JSON.parse(localStorage.getItem(STORAGE)||'[]'); if(!Ar
 let settings; try {settings=JSON.parse(localStorage.getItem('blog-studio-settings')||'{}');} catch {settings={};}
 const legacyProfile=typeof settings.author==='string'?{author:settings.author,bio:settings.bio||'',handle:settings.handle||settings.owner}:null;
 settings={owner:'neura-neura',repo:'blog-studio',author:'林知夏',...settings};
-let token=sessionStorage.getItem('blog-studio-token')||'';
+const tokenStore=initTokenStore({onChange:value=>{token=value;renderConnectionStatus();const input=$('#dialog-form [name=token]');if(input)input.value=value;}});
+let token=tokenStore.get();
 let current=drafts[0]||newDraft(), timer, sourceMode=false, preview=false, published=[], saving=false, articleTab='draft';
 function newDraft(){return {id:crypto.randomUUID(),title:'',markdown:'',html:'',cover:'',author:settings.author,authorBio:settings.bio||'',authorHandle:settings.handle||settings.owner,slug:'',tags:[],excerpt:'',status:'draft',updatedAt:new Date().toISOString()};}
 const slugify=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -93,17 +95,18 @@ function acceptProfile(value){
 }
 function renderConnectionStatus(){
   const button=$('.rail nav [data-action="settings"]');
+  const card=$('#connection-status');if(card){card.outerHTML=connectionMarkup();refreshIcons();}
   button.dataset.connected=String(!!token);
-  button.setAttribute('aria-description',token?'Token guardado en esta pestaña':'Sin token de GitHub');
-  button.title=token?'Configuración · Token guardado en esta pestaña':'Configuración · Sin token de GitHub';
+  button.setAttribute('aria-description',token?'Token guardado en este navegador':'Sin token de GitHub');
+  button.title=token?'Configuración · Token guardado en este navegador':'Configuración · Sin token de GitHub';
 }
+function connectionMarkup(){return `<div id="connection-status" class="connection-status ${token?'is-connected':''}" role="status"><span class="connection-status-icon">${icon(token?'check':'circle-help')}</span><div><strong>${token?'Token guardado en este navegador':'Sin token de GitHub'}</strong><p>${token?'Disponible para publicar. GitHub comprueba sus permisos al guardar o publicar.':'Conecta tu token para publicar artículos y actualizar tu perfil en el sitio público.'}</p></div></div>`;}
 function showSettings(){
-  const connection=`<div class="connection-status ${token?'is-connected':''}" role="status"><span class="connection-status-icon">${icon(token?'check':'circle-help')}</span><div><strong>${token?'Token guardado en esta pestaña':'Sin token de GitHub'}</strong><p>${token?'Disponible para publicar. GitHub comprueba sus permisos al guardar o publicar.':'Conecta tu token para publicar artículos y actualizar tu perfil en el sitio público.'}</p></div></div>`;
-  form('Tu blog',`<button type="button" class="outline wide" data-action="appearance">Apariencia: colores, texto y fondo</button>${connection}<p>Tu perfil se aplica a la portada y a todos tus artículos, incluidos los ya publicados.</p>${field('Nombre del autor','author',settings.author,'text','required maxlength="100"')}${field('Nombre de usuario público','handle',settings.handle||settings.owner,'text','maxlength="100"')}${field('Presentación del autor y del blog','bio',settings.bio||'','text','maxlength="500"')}<p class="hint">Al guardar, los cambios aparecen en este navegador al instante. Con tu token conectado también se actualiza el sitio público cuando GitHub termina el despliegue.</p>${field('Usuario de GitHub','owner',settings.owner,'text','required')}${field('Repositorio','repo',settings.repo,'text','required')}${field('Token de GitHub','token',token,'password','autocomplete="off" placeholder="github_pat_…"')}<p class="hint">Usa un token de acceso específico para este repositorio, con permiso <b>Contents: Read and write</b>. Solo se conserva en esta pestaña durante la sesión. Los borradores se guardan en este navegador.</p><a target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new?name=Blog%20Studio&amp;target_name=neura-neura&amp;expires_in=90&amp;contents=write&amp;actions=read">Crear token en GitHub ↗</a><label class="check"><input type="checkbox" name="disconnect"> Desconectar y borrar el token de esta sesión</label>`,'Guardar configuración',async data=>{
+  form('Tu blog',`<button type="button" class="outline wide" data-action="appearance">Apariencia: colores, texto y fondo</button>${connectionMarkup()}<p>Tu perfil se aplica a la portada y a todos tus artículos, incluidos los ya publicados.</p>${field('Nombre del autor','author',settings.author,'text','required maxlength="100"')}${field('Nombre de usuario público','handle',settings.handle||settings.owner,'text','maxlength="100"')}${field('Presentación del autor y del blog','bio',settings.bio||'','text','maxlength="500"')}<p class="hint">Al guardar, los cambios aparecen en este navegador al instante. Con tu token conectado también se actualiza el sitio público cuando GitHub termina el despliegue.</p>${field('Usuario de GitHub','owner',settings.owner,'text','required')}${field('Repositorio','repo',settings.repo,'text','required')}${field('Token de GitHub','token',token,'password','autocomplete="off" placeholder="github_pat_…"')}<p class="hint">Usa un token de acceso específico para este repositorio, con permiso <b>Contents: Read and write</b>. Se guarda en este navegador y se comparte entre sus pestañas. Permanece al cerrarlo hasta que lo desconectes o borres los datos del sitio. Los borradores se guardan en este navegador.</p><a target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new?name=Blog%20Studio&amp;target_name=neura-neura&amp;expires_in=90&amp;contents=write&amp;actions=read">Crear token en GitHub ↗</a><label class="check"><input type="checkbox" name="disconnect"> Desconectar y borrar el token de este navegador</label>`,'Guardar configuración',async data=>{
     const next={owner:String(data.get('owner')).trim(),repo:String(data.get('repo')).trim(),author:String(data.get('author')).trim(),bio:String(data.get('bio')).trim(),handle:String(data.get('handle')).trim().replace(/^@+/, '')};
     if(!/^[\w.-]+$/.test(next.owner)||!/^[\w.-]+$/.test(next.repo))throw Error('Usuario o repositorio no válido.');
-    settings=next;token=data.get('disconnect')?'':String(data.get('token')).trim();
-    sessionStorage.setItem('blog-studio-token',token);renderConnectionStatus();
+    const nextToken=data.get('disconnect')?'':String(data.get('token')).trim();
+    token=tokenStore.set(nextToken);settings=next;renderConnectionStatus();
     localStorage.setItem('blog-studio-settings',JSON.stringify(settings));
     const value=blogProfile.set(settings);save();
     if(!token){close();toast('Perfil actualizado en este navegador. Conecta tu token y guarda de nuevo para actualizar el blog público.');return;}
