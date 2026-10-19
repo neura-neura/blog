@@ -32,6 +32,12 @@ export class VisibilityClient extends GitHubClient {
   }
   async getPost(slug,visibility='public'){return (await this.checkedSource(visibility)).getPost(slug);}
   async getLastPublication(slug,visibility='public'){return (await this.checkedSource(visibility)).getLastPublication(slug);}
+  async getDeploymentStatus(commitSha){
+    if(commitSha)return super.getDeploymentStatus(commitSha);
+    const result=await this.request('/actions/workflows/pages.yml/runs?per_page=1',{cache:'no-store'});
+    const run=result?.workflow_runs?.[0];
+    return run?{status:run.status,conclusion:run.conclusion,url:run.html_url}:null;
+  }
   url(post){return visibilityOf(post)==='private'?`https://${this.owner}.github.io/${this.repo}/editor.html#article=${encodeURIComponent(post.id)}`:`https://${this.owner}.github.io/${this.repo}/posts/${encodeURIComponent(post.slug)}.html`;}
   async requestBuild(){
     // Contents permission suffices: no Actions-write token needed in the browser.

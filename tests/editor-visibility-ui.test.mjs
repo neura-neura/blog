@@ -27,8 +27,11 @@ test('published library filters visibility and relocates posts through the edito
   w.localStorage.setItem('blog-studio-token-v2:/blog/', 'test-token');
   w.localStorage.setItem('blog-studio-drafts-v1', JSON.stringify([publicPost, { id: 'new-draft', slug: 'new-draft', title: 'Draft to route', markdown: 'Draft body', html: '<p>Draft body</p>', status: 'draft' }, { id: 'private-draft', slug: 'private-draft', title: 'Private draft route', markdown: 'Only private', html: '<p>Only private</p>', status: 'draft' }]));
 
+  let pageReady=true,buildFailed=false;
   w.fetch = async (url, options = {}) => {
     const parsed = new URL(String(url));
+    if(parsed.hostname.endsWith('.github.io'))return {ok:pageReady,text:async()=>`<meta name="article-version" content="${parsed.searchParams.get('v')}">`};
+    if(parsed.pathname.includes('/actions/'))return {ok:true,status:200,json:async()=>({workflow_runs:[{status:'completed',conclusion:buildFailed?'failure':'success'}]})};
     const pieces = parsed.pathname.split('/');
     const repo = decodeURIComponent(pieces[3] || '');
     const pathname = pieces.slice(5).join('/');
@@ -86,7 +89,17 @@ test('published library filters visibility and relocates posts through the edito
     assert.ok(radio);
     radio.checked = true;
     await click('#dialog-form [type="submit"]');
-    await wait(() => !w.document.querySelector('#modal').open && w.document.querySelector('#article-title').readOnly);
+    await wait(() => w.document.querySelector('#article-link-result'));
+    if(buildFailed){
+      await wait(()=>/No se pudo actualizar/.test(w.document.querySelector('#article-link-result').textContent));
+      assert.equal(w.document.querySelector('.article-open-link'),null,'failed deployments must not expose the link');
+      pageReady=true;buildFailed=false;
+      await click('[data-action="retry-article-publication"]');
+    }
+    await wait(()=>/Artículo listo|Artículo privado/.test(w.document.querySelector('#article-link-result').textContent));
+    assert.equal(w.document.querySelectorAll('#article-link-result [data-action="retry-build"]').length,0);
+    assert.equal(w.document.querySelectorAll('#article-link-result .article-open-link').length,value==='private'?0:1);
+    await click('[data-action="close"]');
     assert.equal(files[expectedRepo].size, 1, `post should be in ${expectedRepo}`);
   };
 
@@ -104,6 +117,7 @@ test('published library filters visibility and relocates posts through the edito
     await click('[data-visibility-filter="public"]');
     assert.ok(w.document.querySelector('[data-published="0"]'));
     await click('[data-published="0"]');
+    pageReady=false;buildFailed=true;
     await submitVisibility('unlisted', repos.unlisted);
     const unlisted = files[repos.unlisted].get('posts/12345678-1234-4234-9234-123456789abc.json').post;
     assert.equal(unlisted.visibility, 'unlisted');
@@ -121,7 +135,7 @@ test('published library filters visibility and relocates posts through the edito
     const privatePost = files[repos.private].get('posts/article-ui.json').post;
     assert.equal(privatePost.visibility, 'private');
     assert.equal(privatePost.slug, 'article-ui');
-    assert.match(w.document.querySelector('#toast').textContent, /privado/i);
+    assert.match(w.document.querySelector('.badge').textContent, /Privado/);
 
     await click('[data-action="panel-published"]');
     await click('[data-visibility-filter="private"]');

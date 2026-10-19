@@ -25,6 +25,24 @@ const post = (extra = {}) => ({
   updatedAt: '2025-01-03T00:00:00Z', status: 'published', ...extra,
 });
 
+test('moving the last public article to unlisted builds without a public posts directory',async t=>{
+  const root=await mkdtemp(path.join(os.tmpdir(),'empty-public-'));
+  t.after(()=>rm(root,{recursive:true,force:true}));
+  const publicPostsDir=path.join(root,'public','posts');
+  const unlistedPostsDir=path.join(root,'unlisted','posts');
+  const outDir=path.join(root,'dist');
+  await mkdir(unlistedPostsDir,{recursive:true});
+  const slug='2642223a-738c-4fcc-a2b2-e4c59c2810d3';
+  await writeFile(path.join(unlistedPostsDir,slug+'.json'),JSON.stringify(post({slug,visibility:'unlisted'})));
+  const result=await buildPosts({postsDir:publicPostsDir,publicPostsDir,unlistedPostsDir,outDir});
+  assert.equal(result.posts,0);
+  assert.match(await readFile(path.join(outDir,'posts',slug+'.html'),'utf8'),/article-version/);
+  for(const file of ['index.html','posts.json','feed.xml','sitemap.xml'])assert.doesNotMatch(await readFile(path.join(outDir,file),'utf8'),new RegExp(slug));
+  await rm(unlistedPostsDir,{recursive:true});
+  await buildPosts({postsDir:publicPostsDir,publicPostsDir,unlistedPostsDir,outDir:path.join(root,'empty')});
+  assert.deepEqual(JSON.parse(await readFile(path.join(root,'empty','posts.json'),'utf8')),[]);
+});
+
 test('100,000 publications produce only 20 cards in the initial home HTML',()=>{
   const posts=Array.from({length:100000},(_,index)=>({slug:`entry-${index}`,title:`Entry ${index}`,publishedAt:'2026-01-01'}));
   const html=renderIndex(posts,{profile:{author:'Writer',bio:'Bio',handle:'writer',website:''},siteUrl:'https://example.test',escapeHtml:String,safeImageUrl:()=>'',plainText:()=> 'Content'});

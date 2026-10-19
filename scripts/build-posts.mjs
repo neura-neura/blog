@@ -114,7 +114,13 @@ export async function buildPosts({ postsDir = 'posts', publicPostsDir = process.
   const unlistedRoot = unlistedPostsDir ? path.resolve(unlistedPostsDir) : null;
   const output = path.resolve(outDir);
   const base = cleanSiteUrl(siteUrl);
-  const files = (await readdir(root)).filter((file) => file.endsWith('.json')).sort();
+  // Git removes a directory when its final tracked article is moved or deleted.
+  // An empty visibility source is valid, including a blog with only unlisted posts.
+  const articleFiles = async directory => {
+    try { return (await readdir(directory)).filter(file => file.endsWith('.json')).sort(); }
+    catch(error) { if(error.code === 'ENOENT')return []; throw error; }
+  };
+  const files = await articleFiles(root);
   const posts = [];
   for (const file of files) {
     const post = JSON.parse(await readFile(path.join(root, file), 'utf8'));
@@ -124,7 +130,7 @@ export async function buildPosts({ postsDir = 'posts', publicPostsDir = process.
   }
   const unlistedPosts = [];
   if (unlistedRoot) {
-    for (const file of (await readdir(unlistedRoot)).filter((file) => file.endsWith('.json')).sort()) {
+    for (const file of await articleFiles(unlistedRoot)) {
       const post = JSON.parse(await readFile(path.join(unlistedRoot, file), 'utf8'));
       if (post.status !== 'published' || post.visibility !== 'unlisted') continue;
       if (!validSlug(post.slug)) throw new Error(`Invalid post slug in ${file}`);
