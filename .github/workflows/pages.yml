@@ -23,10 +23,24 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/blog-public
+          ssh-key: ${{ secrets.PUBLIC_CONTENT_SSH_KEY }}
+          persist-credentials: false
+          path: .content-sources/public
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/blog-unlisted
+          ssh-key: ${{ secrets.UNLISTED_CONTENT_SSH_KEY }}
+          persist-credentials: false
+          path: .content-sources/unlisted
       - run: npm ci
       - run: npm test
       - run: npm run build
         env:
+          PUBLIC_POSTS_DIR: .content-sources/public/posts
+          UNLISTED_POSTS_DIR: .content-sources/unlisted/posts
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -109,23 +109,38 @@ function renderFeed(posts, siteUrl, profile) {
   return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${escapeHtml(profile.author)} · Artículos</title><link>${escapeHtml(`${siteUrl}/`)}</link><description>${escapeHtml(profile.bio)}</description>${items}</channel></rss>`;
 }
 
-export async function buildPosts({ postsDir = 'posts', outDir = 'dist', siteUrl = process.env.SITE_URL || DEFAULT_SITE_URL } = {}) {
-  const root = path.resolve(postsDir);
+export async function buildPosts({ postsDir = 'posts', publicPostsDir = process.env.PUBLIC_POSTS_DIR || postsDir, unlistedPostsDir = process.env.UNLISTED_POSTS_DIR, outDir = 'dist', siteUrl = process.env.SITE_URL || DEFAULT_SITE_URL } = {}) {
+  const root = path.resolve(publicPostsDir);
+  const unlistedRoot = unlistedPostsDir ? path.resolve(unlistedPostsDir) : null;
   const output = path.resolve(outDir);
   const base = cleanSiteUrl(siteUrl);
   const files = (await readdir(root)).filter((file) => file.endsWith('.json')).sort();
   const posts = [];
   for (const file of files) {
     const post = JSON.parse(await readFile(path.join(root, file), 'utf8'));
-    if (post.status !== 'published') continue;
+    if (post.status !== 'published' || ![undefined, 'public'].includes(post.visibility)) continue;
     if (!validSlug(post.slug)) throw new Error(`Invalid post slug in ${file}`);
     posts.push(post);
   }
+  const unlistedPosts = [];
+  if (unlistedRoot) {
+    for (const file of (await readdir(unlistedRoot)).filter((file) => file.endsWith('.json')).sort()) {
+      const post = JSON.parse(await readFile(path.join(unlistedRoot, file), 'utf8'));
+      if (post.status !== 'published' || post.visibility !== 'unlisted') continue;
+      if (!validSlug(post.slug)) throw new Error(`Invalid post slug in ${file}`);
+      unlistedPosts.push(post);
+    }
+  }
+  const publicSlugs = new Set(posts.map((post) => post.slug));
+  for (let index = unlistedPosts.length - 1; index >= 0; index--) {
+    if (publicSlugs.has(unlistedPosts[index].slug)) unlistedPosts.splice(index, 1);
+  }
   posts.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
   let savedProfile={};
-  try { savedProfile=JSON.parse(await readFile(path.resolve(root,'../blog-profile.json'),'utf8')); } catch(error) { if(error.code!=='ENOENT')throw error; }
+  const engineProfile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../blog-profile.json');
+  try { savedProfile=JSON.parse(await readFile(path.resolve(path.resolve(postsDir),'../blog-profile.json'),'utf8')); } catch(error) { if(error.code!=='ENOENT')throw error; try { savedProfile=JSON.parse(await readFile(engineProfile,'utf8')); } catch(fallbackError) { if(fallbackError.code!=='ENOENT')throw fallbackError; } }
   const profile=normalizeProfile({author:posts[0]?.author||'Mi blog',bio:posts[0]?.authorBio||'',handle:new URL(base).hostname.split('.')[0],...savedProfile});
-  for(const post of posts)Object.assign(post,{author:profile.author,authorBio:profile.bio,authorHandle:profile.handle,authorAvatar:profile.avatar,authorWebsite:profile.website});
+  for(const post of [...posts,...unlistedPosts])Object.assign(post,{author:profile.author,authorBio:profile.bio,authorHandle:profile.handle,authorAvatar:profile.avatar,authorWebsite:profile.website});
   await mkdir(path.join(output, 'posts'), { recursive: true });
   const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src');
   await Promise.all(['appearance.js','appearance.css','pending-article.js','blog.css','blog-index.js','feed-pager.js','feed-card.js','post-order.js','profile.js'].map(file => copyFile(path.join(sourceRoot,file),path.join(output,file))));
@@ -137,6 +152,7 @@ export async function buildPosts({ postsDir = 'posts', outDir = 'dist', siteUrl 
   const plainText=post=>decodeAttribute(sanitizeHtml(String(post.html||marked.parse(post.markdown||'')).replace(/<[^>]+>/g,' '),{allowedTags:[],allowedAttributes:{}})).replace(/\s+/g,' ').trim();
   const {renderOptions}=await buildSearch(posts,{output,profile,escapeHtml,safeImageUrl,plainText});
   for(let offset=0;offset<posts.length;offset+=32)await Promise.all(posts.slice(offset,offset+32).map((post) => writeFile(path.join(output, 'posts', `${post.slug}.html`), versionStyles(renderArticle(post, `${base}/posts/${encodeURIComponent(post.slug)}.html`)), 'utf8')));
+  for(let offset=0;offset<unlistedPosts.length;offset+=32)await Promise.all(unlistedPosts.slice(offset,offset+32).map((post) => writeFile(path.join(output, 'posts', `${post.slug}.html`), versionStyles(renderArticle(post, `${base}/posts/${encodeURIComponent(post.slug)}.html`).replace('<meta name="description"', '<meta name="robots" content="noindex,nofollow,noarchive"><meta name="description"')), 'utf8')));
   await writeFile(path.join(output, 'index.html'),versionStyles(renderIndex(posts,{...renderOptions,siteUrl:base})), 'utf8');
   const sitePath=new URL(base).pathname.replace(/\/$/,'');
   await writeFile(path.join(output,'404.html'),`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Artículo · Blog</title><link rel="icon" type="image/svg+xml" href="${sitePath}/favicon.svg"><link rel="stylesheet" href="${sitePath}/appearance.css"><script type="module" src="${sitePath}/pending-article.js"></script><style>body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}.waiting{max-width:520px;margin:15vh auto;padding:32px}h1{font-size:26px;line-height:32px}p{color:var(--muted)}.home{display:inline-flex;padding:10px 20px;border-radius:99px;background:var(--blue,#1d9bf0);color:#fff;text-decoration:none;font-weight:700}</style></head><body><main class="waiting"><h1 id="pending-title">No encontramos esta página</h1><p id="pending-message">Comprueba el enlace o vuelve al blog.</p><a class="home" href="${sitePath}/index.html">Volver al blog</a></main></body></html>`,'utf8');

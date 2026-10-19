@@ -145,6 +145,45 @@ test('excludes drafts from every public output', async (t) => {
   await assert.rejects(readFile(path.join(outDir, 'posts', 'secret-draft.html')));
 });
 
+test('builds unlisted pages by direct URL while keeping them out of every public listing', async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'build-visibility-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const publicPostsDir = path.join(root, 'public-posts');
+  const unlistedPostsDir = path.join(root, 'unlisted-posts');
+  const outDir = path.join(root, 'dist');
+  await mkdir(publicPostsDir); await mkdir(unlistedPostsDir);
+  await writeFile(path.join(publicPostsDir, 'public.json'), JSON.stringify(post({ id: 'public', slug: 'public-article', title: 'Public article' })));
+  // An unlisted record in the public checkout and private records in either checkout must fail closed.
+  await writeFile(path.join(publicPostsDir, 'misplaced.json'), JSON.stringify(post({ id: 'misplaced', slug: 'misplaced-secret', title: 'Misplaced secret', visibility: 'unlisted' })));
+  await writeFile(path.join(publicPostsDir, 'private.json'), JSON.stringify(post({ id: 'private', slug: 'private-secret', title: 'Private secret', visibility: 'private' })));
+  await writeFile(path.join(unlistedPostsDir, 'unlisted.json'), JSON.stringify(post({ id: 'unlisted', slug: 'shared-secret-link', title: 'Unlisted secret', visibility: 'unlisted', cover: 'https://assets.example.test/unlisted-cover-secret.webp', html: '<p>Unlisted body</p><img src="https://assets.example.test/unlisted-inline-secret.webp" alt="Unlisted image">' })));
+  await writeFile(path.join(unlistedPostsDir, 'private.json'), JSON.stringify(post({ id: 'private-2', slug: 'second-private-secret', title: 'Second private secret', visibility: 'private' })));
+  await buildPosts({ publicPostsDir, unlistedPostsDir, outDir, siteUrl: 'https://example.test/blog' });
+
+  for (const file of ['index.html', 'feed.xml', 'sitemap.xml', 'posts.json']) {
+    const content = await readFile(path.join(outDir, file), 'utf8');
+    assert.doesNotMatch(content, /shared-secret-link|Unlisted secret|unlisted-cover-secret|unlisted-inline-secret|misplaced-secret|Misplaced secret|private-secret|Private secret|second-private-secret|Second private secret/);
+  }
+  const publicIndex = await readFile(path.join(outDir, 'index.html'), 'utf8');
+  assert.match(publicIndex, /public-article/);
+  const searchDir = /data-search-path="\.\/([^\"]+)"/.exec(publicIndex)?.[1];
+  assert.ok(searchDir);
+  const searchFiles = await (await import('node:fs/promises')).readdir(path.join(outDir, searchDir), { recursive: true });
+  for (const file of searchFiles.filter(file => typeof file === 'string')) {
+    if (!file.endsWith('.json') && !file.endsWith('.js')) continue;
+    assert.doesNotMatch(await readFile(path.join(outDir, searchDir, file), 'utf8'), /shared-secret-link|Unlisted secret|unlisted-cover-secret|unlisted-inline-secret|misplaced-secret|Misplaced secret|private-secret|Private secret/);
+  }
+  const unlisted = await readFile(path.join(outDir, 'posts', 'shared-secret-link.html'), 'utf8');
+  assert.match(unlisted, /Unlisted secret/);
+  assert.match(unlisted, /unlisted-cover-secret\.webp/);
+  assert.match(unlisted, /unlisted-inline-secret\.webp/);
+  assert.match(unlisted, /<meta name="robots" content="noindex,nofollow,noarchive">/);
+  assert.doesNotMatch(unlisted, /misplaced-secret|Private secret|Second private secret/);
+  for (const slug of ['misplaced-secret', 'private-secret', 'second-private-secret']) {
+    await assert.rejects(readFile(path.join(outDir, 'posts', `${slug}.html`)));
+  }
+});
+
 test('rejects traversal and noncanonical slugs before writing an article', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'build-posts-invalid-'));
   t.after(() => rm(root, { recursive: true, force: true }));

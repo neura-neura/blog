@@ -95,3 +95,13 @@ header{gap:8px}
 @keyframes list-loading-spin{to{transform:rotate(360deg)}}
 @keyframes list-loading-slide{from{transform:translateX(-110%)}to{transform:translateX(390%)}}
 @media(prefers-reduced-motion:reduce){.list-loading{animation:none;opacity:1}.list-loading-indicator{animation:none!important}.has-items .list-loading-indicator{margin-inline:auto}}
+
+.visibility-filters{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--line)}
+.visibility-filters button{font-size:12px;padding:6px 9px;min-height:32px;color:var(--muted)}
+.visibility-filters button[aria-pressed="true"]{background:var(--hover);color:var(--ink);font-weight:700}
+.publication-visibility{display:flex;align-items:center;gap:5px}.publication-visibility svg{width:14px;height:14px}
+.visibility-choices{border:0;padding:0;margin:16px 0}.visibility-choices legend{font-size:15px;font-weight:700;margin-bottom:8px}
+dialog .visibility-choice{display:flex;flex-direction:row;align-items:center;gap:12px;margin:0;padding:14px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;font-weight:400}
+.visibility-choice:has(input:checked){border-color:var(--blue);background:color-mix(in srgb,var(--blue) 7%,var(--bg))}
+.visibility-choice>svg{flex-shrink:0;width:22px;height:22px}.visibility-choice>span{flex:1;min-width:0}.visibility-choice strong,.visibility-choice small{display:block}.visibility-choice small{font-size:13px;line-height:18px;color:var(--muted);margin-top:3px}
+dialog .visibility-choice input[type="radio"]{width:18px;height:18px;padding:0;accent-color:var(--blue)}.article-open-link{display:flex;justify-content:center;gap:8px;text-decoration:none}

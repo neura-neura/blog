@@ -69,7 +69,7 @@ export class PrivateDraftClient extends GitHubClient {
       if (remote.privateSavedAt !== expectedVersion&&!consumedSnapshot) throw Error('Este borrador cambió en otro dispositivo. Abre Borradores y recupera la versión más reciente antes de volver a guardarlo.');
     }
     const saved = {};
-    for (const key of ['id', 'title', 'markdown', 'html', 'cover', 'coverSource', 'coverCrop', 'slug', 'tags', 'excerpt', 'author', 'authorBio', 'authorHandle', 'publishedAt', 'updatedAt', 'sourcePublicationUpdatedAt']) {
+    for (const key of ['visibility', 'publicSlug', 'id', 'title', 'markdown', 'html', 'cover', 'coverSource', 'coverCrop', 'slug', 'tags', 'excerpt', 'author', 'authorBio', 'authorHandle', 'publishedAt', 'updatedAt', 'sourcePublicationUpdatedAt']) {
       if (draft[key] !== undefined) saved[key] = draft[key];
     }
     saved.status = 'draft';
