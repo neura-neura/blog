@@ -64,6 +64,9 @@ function updateCounts(){const {words,minutes}=readingStats(editor.getText());$('
 function updateToolbar(){for(const [a,n] of [['bold','bold'],['italic','italic'],['strike','strike'],['quote','blockquote'],['bullet','bulletList'],['ordered','orderedList']]){const b=$(`[data-action="${a}"]`);b.classList.toggle('active',editor.isActive(n));b.setAttribute('aria-pressed',editor.isActive(n));}$('#text-style').value=[1,2,3].find(level=>editor.isActive('heading',{level}))||'p';}
 let saveTimeout;
 function scheduleSave(){syncCurrent();current.updatedAt=new Date().toISOString();$('#saved').textContent='Guardando…';clearTimeout(saveTimeout);saveTimeout=setTimeout(save,350);}
+function listLoadingMarkup(loading,hasItems,label){
+  return loading?`<div class="list-loading ${hasItems?'has-items':'is-empty'}" role="status"><span class="loading-label">${label}</span><span class="list-loading-indicator" aria-hidden="true"></span></div>`:'';
+}
 function renderArticles(){
   const list=$('#articles-list');
   if(articleTab==='draft'){list.innerHTML=draftListMarkup();updateArticleTabs();return;}
@@ -72,7 +75,7 @@ function renderArticles(){
   const items=articleTab==='published'?published:drafts.filter(d=>d.status!=='published');
   list.innerHTML=items.map(d=>`<button class="article-item ${d.id===current.id?'selected':''}" ${articleTab==='published'?`data-published="${published.indexOf(d)}"`:`data-draft="${esc(d.id)}"`} ${d.id===current.id?'aria-current="true"':''}><strong>${esc(d.title||'Sin título')}</strong><span>${new Date(d.updatedAt).toLocaleDateString('es-MX')}</span></button>`).join('')||`<p class="panel-empty">${articleTab==='published'?'Tus artículos publicados aparecerán aquí.':'Empieza un nuevo artículo para guardar tus ideas.'}</p>`;
   if(articleTab==='published'){
-    if(state.loading)list.insertAdjacentHTML('afterbegin','<p class="panel-empty" role="status">Cargando artículos de GitHub…</p>');
+    list.insertAdjacentHTML('beforeend',listLoadingMarkup(state.loading,items.length,'Cargando artículos'));
     if(state.error)list.insertAdjacentHTML('afterbegin',`<div class="panel-empty" role="status"><p>${esc(state.error)}</p><button class="outline" data-action="retry-published">Reintentar</button></div>`);
     if(!items.length&&(state.loading||state.error))list.querySelector(':scope > p.panel-empty:not([role])')?.remove();
   }
@@ -228,7 +231,7 @@ function privateClient(){if(!token)throw Error('Conecta tu token de GitHub para 
 function draftListMarkup(query=''){
   const {posts,loading,error}=privateLibrary.state();
   const entries=draftEntries(drafts,posts,equalDrafts,publishedLibrary.state().posts).filter(({draft})=>draft.title.toLowerCase().includes(query.toLowerCase()));
-  return `${entries.map(({draft:d,remoteOnly,storage})=>`<button class="article-item ${d.id===current.id?'selected':''}" ${remoteOnly?`data-private="${esc(d.id)}"`:`data-draft="${esc(d.id)}"`}><strong>${esc(d.title||'Sin título')}</strong><span>${esc(storage)}</span><span>${new Date(d.updatedAt||d.privateSavedAt).toLocaleDateString('es-MX')}</span></button>`).join('')||(!loading?'<p class="panel-empty">No hay borradores que mostrar.</p>':'')}${loading?'<p class="panel-empty" role="status">Buscando borradores en la nube…</p>':''}${error?`<div class="panel-empty" role="status"><p>No se pudieron consultar los borradores en la nube. Tus borradores locales siguen disponibles.</p><button class="outline" data-action="retry-private">Reintentar</button><button class="outline" data-action="private-access">Revisar acceso</button></div>`:''}`;
+  return `${entries.map(({draft:d,remoteOnly,storage})=>`<button class="article-item ${d.id===current.id?'selected':''}" ${remoteOnly?`data-private="${esc(d.id)}"`:`data-draft="${esc(d.id)}"`}><strong>${esc(d.title||'Sin título')}</strong><span>${esc(storage)}</span><span>${new Date(d.updatedAt||d.privateSavedAt).toLocaleDateString('es-MX')}</span></button>`).join('')||(!loading?'<p class="panel-empty">No hay borradores que mostrar.</p>':'')}${listLoadingMarkup(loading,entries.length,'Cargando borradores')}${error?`<div class="panel-empty" role="status"><p>No se pudieron consultar los borradores en la nube. Tus borradores locales siguen disponibles.</p><button class="outline" data-action="retry-private">Reintentar</button><button class="outline" data-action="private-access">Revisar acceso</button></div>`:''}`;
 }
 function privateAccess(){
   modal('Acceso a borradores en la nube',`<p>Los borradores se guardan en <strong>${esc(settings.owner)}/${esc(settings.repo)}-drafts</strong>, separado del blog público.</p><ol><li>Abre tu token de Blog en GitHub.</li><li>En <strong>Repository access → Only select repositories</strong>, conserva <strong>${esc(settings.repo)}</strong> y añade <strong>${esc(settings.repo)}-drafts</strong>.</li><li>En <strong>Repository permissions</strong>, usa <strong>Contents: Read and write</strong> y guarda los cambios.</li></ol><p class="hint">Puedes usar el mismo token guardado. Si generas uno nuevo, sustitúyelo en Configuración.</p><p><a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener noreferrer">Abrir mis tokens en GitHub ↗</a></p><button class="outline wide" data-action="settings">Configuración del blog</button>`);

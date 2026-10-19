@@ -82,3 +82,16 @@ header{gap:8px}
 .published-view .body-image-edit,.published-view .body-image-remove,.published-view .body-image-caption.is-empty,.published-view .cover:not(.has-cover){display:none}.published-view .body-image-caption{pointer-events:none}.published-view .header-actions .primary{white-space:normal;max-width:250px;line-height:18px}.published-view #article-title{cursor:default}@media(max-width:640px){.published-view .header-actions .primary{max-width:185px;font-size:12px;line-height:15px}.published-view .save-state{max-width:85px}}
 
 .menu-list>button[data-action="delete-published"]{color:#f4212e}.primary.danger{background:#f4212e;color:#fff}.primary.danger:hover{background:#dc1e29}
+
+/* Loading never participates in the list layout or moves an existing card. */
+#articles-list,#draft-list{position:relative;min-height:64px}
+.list-loading{position:absolute;inset:0 0 auto;pointer-events:none;color:var(--blue);opacity:0;animation:list-loading-reveal 0s .15s forwards}
+.loading-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.list-loading.has-items{height:2px;overflow:hidden;background:color-mix(in srgb,var(--blue) 16%,transparent)}
+.has-items .list-loading-indicator{display:block;width:35%;height:100%;background:currentColor;border-radius:2px;animation:list-loading-slide 1.2s ease-in-out infinite}
+.list-loading.is-empty{display:flex;justify-content:center;padding-top:24px}
+.is-empty .list-loading-indicator{display:block;width:24px;height:24px;border:3px solid color-mix(in srgb,currentColor 22%,transparent);border-top-color:currentColor;border-radius:50%;animation:list-loading-spin .8s linear infinite}
+@keyframes list-loading-reveal{to{opacity:1}}
+@keyframes list-loading-spin{to{transform:rotate(360deg)}}
+@keyframes list-loading-slide{from{transform:translateX(-110%)}to{transform:translateX(390%)}}
+@media(prefers-reduced-motion:reduce){.list-loading{animation:none;opacity:1}.list-loading-indicator{animation:none!important}.has-items .list-loading-indicator{margin-inline:auto}}
