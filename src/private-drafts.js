@@ -41,6 +41,21 @@ export class PrivateDraftClient extends GitHubClient {
     })).then(drafts => drafts.filter(Boolean));
   }
 
+  async deleteDraft(id, expectedVersion) {
+    if (!validId(id)) throw Error('El borrador necesita un identificador válido.');
+    await this.assertPrivate();
+    const path = `/contents/drafts/${encodeURIComponent(id)}.json`;
+    const existing = await this.request(`${path}?ref=${encodeURIComponent(this.branch)}`, { cache: 'no-store' });
+    if (!existing) return { deleted: false };
+    const remote = await this.readDraft(existing);
+    if (expectedVersion && remote.privateSavedAt !== expectedVersion) throw Error('El borrador cambió en otro dispositivo. Abre la versión más reciente desde Borradores antes de eliminarlo.');
+    const result = await this.request(path, { method: 'DELETE', body: JSON.stringify({
+      message: 'Delete cloud draft', sha: existing.sha, branch: this.branch,
+    }) });
+    if (!result?.commit?.sha) throw Error('GitHub no confirmó la eliminación del borrador. Vuelve a intentarlo.');
+    return { deleted: true, commitSha: result.commit.sha };
+  }
+
   async saveDraft(draft, expectedVersion) {
     if (!validId(draft?.id)) throw Error('El borrador necesita un identificador válido.');
     await this.assertPrivate();

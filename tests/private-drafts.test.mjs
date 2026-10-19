@@ -104,3 +104,31 @@ test('a consumed pre-publication cloud snapshot can be updated after a lost loca
   await assert.rejects(api.saveDraft({...draft,slug:'different',sourcePublicationUpdatedAt:'2026-10-18T11:00:00Z'}),/otro dispositivo/);
   assert.equal(writes.length,count);
 });
+
+
+test('cloud deletion uses fresh SHA, rejects newer versions, and touches only the private draft', async()=>{
+  const calls=[];
+  const api=client(async(url,options)=>{
+    calls.push({url,options});
+    if(options.method==='DELETE')return response(200,{commit:{sha:'deleted'}});
+    return response(200,url.includes('/contents/')?{sha:'fresh-sha',content:encode({...draft,privateSavedAt:'latest'})}:{private:true,permissions:{push:true}});
+  });
+  await assert.rejects(api.deleteDraft('../invalid'),/identificador/);
+  await assert.rejects(api.deleteDraft(draft.id,'older'),/otro dispositivo/);
+  assert.equal(calls.some(c=>c.options.method==='DELETE'),false);
+  assert.equal((await api.deleteDraft(draft.id,'latest')).deleted,true);
+  const deletion=calls.find(c=>c.options.method==='DELETE');
+  assert.equal(deletion.url,'https://api.github.com/repos/writer/blog-drafts/contents/drafts/draft-one.json');
+  assert.equal(JSON.parse(deletion.options.body).sha,'fresh-sha');
+  assert.ok(calls.filter(c=>c.options.method==='GET'&&c.url.includes('/contents/')).every(c=>c.options.cache==='no-store'));
+});
+
+test('cloud deletion is idempotent and never claims success without a confirmed commit',async()=>{
+  const missing=client(async url=>url.includes('/contents/')?response(404,null):response(200,{private:true,permissions:{push:true}}));
+  assert.equal((await missing.deleteDraft(draft.id)).deleted,false);
+  const failed=client(async(url,options)=>{
+    if(options.method==='DELETE')return response(200,{});
+    return response(200,url.includes('/contents/')?{sha:'fresh-sha',content:encode(draft)}:{private:true,permissions:{push:true}});
+  });
+  await assert.rejects(failed.deleteDraft(draft.id),/no confirmó/);
+});
