@@ -80,3 +80,5 @@ header{gap:8px}
 .author-footer>.profile-website{margin:8px 0 0 52px}
 
 .published-view .body-image-edit,.published-view .body-image-remove,.published-view .body-image-caption.is-empty,.published-view .cover:not(.has-cover){display:none}.published-view .body-image-caption{pointer-events:none}.published-view .header-actions .primary{white-space:normal;max-width:250px;line-height:18px}.published-view #article-title{cursor:default}@media(max-width:640px){.published-view .header-actions .primary{max-width:185px;font-size:12px;line-height:15px}.published-view .save-state{max-width:85px}}
+
+.menu-list>button[data-action="delete-published"]{color:#f4212e}.primary.danger{background:#f4212e;color:#fff}.primary.danger:hover{background:#dc1e29}
