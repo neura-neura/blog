@@ -83,6 +83,7 @@ function renderArticles(){
     if(state.error)list.insertAdjacentHTML('afterbegin',`<div class="panel-empty" role="status"><p>${esc(state.error)}</p><button class="outline" data-action="retry-published">Reintentar</button></div>`);
     if(!items.length&&(state.loading||state.error))list.querySelector(':scope > p.panel-empty:not([role])')?.remove();
   }
+  list.innerHTML=`<div class="articles-results">${list.innerHTML}</div>`;
   list.insertAdjacentHTML('afterbegin',`<div class="visibility-filters" role="group" aria-label="Filtrar por visibilidad">${[['all','Todos'],['public','Públicos'],['unlisted','No listados'],['private','Privados']].map(([value,label])=>`<button data-visibility-filter="${value}" aria-pressed="${visibilityFilter===value}">${label}</button>`).join('')}</div>`);
   updateArticleTabs();refreshIcons();
 }

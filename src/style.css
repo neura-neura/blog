@@ -85,6 +85,7 @@ header{gap:8px}
 
 /* Loading never participates in the list layout or moves an existing card. */
 #articles-list,#draft-list{position:relative;min-height:64px}
+.articles-results{position:relative;min-height:80px}
 .list-loading{position:absolute;inset:0 0 auto;pointer-events:none;color:var(--blue);opacity:0;animation:list-loading-reveal 0s .15s forwards}
 .loading-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .list-loading.has-items{height:2px;overflow:hidden;background:color-mix(in srgb,var(--blue) 16%,transparent)}
