@@ -94,7 +94,7 @@ header{gap:8px}
 @keyframes list-loading-reveal{to{opacity:1}}
 @keyframes list-loading-spin{to{transform:rotate(360deg)}}
 @keyframes list-loading-slide{from{transform:translateX(-110%)}to{transform:translateX(390%)}}
-@media(prefers-reduced-motion:reduce){.list-loading{animation:none;opacity:1}.list-loading-indicator{animation:none!important}.has-items .list-loading-indicator{margin-inline:auto}}
+@media(prefers-reduced-motion:reduce){.list-loading{animation:none;opacity:1}.has-items .list-loading-indicator{animation:none!important;margin-inline:auto}.is-empty .list-loading-indicator{animation:list-loading-spin .8s linear infinite!important}}
 
 .visibility-filters{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--line)}
 .visibility-filters button{font-size:12px;padding:6px 9px;min-height:32px;color:var(--muted)}

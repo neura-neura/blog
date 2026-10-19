@@ -121,4 +121,5 @@ dialog .crop-zoom input[type=range]{appearance:none;background:var(--accent-soft
 #saved.is-updating:before,.publication-icon.spinning:before{content:'';display:inline-block;width:12px;height:12px;flex-shrink:0;border:2px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:publication-spin .8s linear infinite}
 .publication-icon.spinning:before{width:20px;height:20px}.publication-icon.spinning svg{display:none}
 @keyframes publication-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){#saved.is-updating:before,.publication-icon.spinning:before{animation:none}}
+/* Circular progress stays animated; larger transitions still respect reduced motion. */
+@media(prefers-reduced-motion:reduce){#saved.is-updating:before,.publication-icon.spinning:before{animation:publication-spin .8s linear infinite!important}}
