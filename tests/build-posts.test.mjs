@@ -25,6 +25,31 @@ const post = (extra = {}) => ({
   updatedAt: '2025-01-03T00:00:00Z', status: 'published', ...extra,
 });
 
+test('share metadata uses absolute cover URLs and escaped titles and descriptions',async t=>{
+  const {outDir}=await fixture(t,{one:post({title:'Ideas "nuevas" & otras',excerpt:'Una nota <breve>',cover:'../images/cover.webp'})});
+  const html=await readFile(path.join(outDir,'posts/hello-world.html'),'utf8');
+  assert.match(html,/<meta property="og:title" content="Ideas &quot;nuevas&quot; &amp; otras">/);
+  assert.match(html,/<meta property="og:description" content="Una nota &lt;breve&gt;">/);
+  assert.match(html,/<meta property="og:url" content="https:\/\/example.test\/blog\/posts\/hello-world.html">/);
+  assert.match(html,/<meta name="twitter:card" content="summary_large_image">/);
+  assert.match(html,/<meta property="og:image" content="https:\/\/example.test\/blog\/images\/cover.webp">/);
+});
+
+test('embedded share covers become fetchable files and body images are a fallback',async t=>{
+  const bytes=Buffer.from('cover test bytes');
+  const {outDir}=await fixture(t,{one:post({cover:`data:image/png;base64,${bytes.toString('base64')}`}),two:post({slug:'inline',excerpt:'',html:'<p>Texto de muestra.</p><img src="https://example.test/body.webp">'}),three:post({slug:'text-only',excerpt:'',html:'<p>Sin imagen.</p>'})});
+  const html=await readFile(path.join(outDir,'posts/hello-world.html'),'utf8');
+  const image=/<meta property="og:image" content="([^"]+)">/.exec(html)[1];
+  assert.match(image,/^https:\/\/example.test\/blog\/posts\/hello-world-share-[a-f0-9]+\.png$/);
+  assert.deepEqual(await readFile(path.join(outDir,'posts',new URL(image).pathname.split('/').pop())),bytes);
+  const inline=await readFile(path.join(outDir,'posts/inline.html'),'utf8');
+  assert.match(inline,/<meta name="twitter:image" content="https:\/\/example.test\/body.webp">/);
+  assert.match(inline,/<meta property="og:description" content="Texto de muestra\.">/);
+  const text=await readFile(path.join(outDir,'posts/text-only.html'),'utf8');
+  assert.match(text,/<meta name="twitter:card" content="summary">/);
+  assert.doesNotMatch(text,/<meta property="og:image"/);
+});
+
 test('moving the last public article to unlisted builds without a public posts directory',async t=>{
   const root=await mkdtemp(path.join(os.tmpdir(),'empty-public-'));
   t.after(()=>rm(root,{recursive:true,force:true}));
@@ -196,6 +221,8 @@ test('builds unlisted pages by direct URL while keeping them out of every public
   assert.match(unlisted, /unlisted-cover-secret\.webp/);
   assert.match(unlisted, /unlisted-inline-secret\.webp/);
   assert.match(unlisted, /<meta name="robots" content="noindex,nofollow,noarchive">/);
+  assert.match(unlisted, /<meta property="og:url" content="https:\/\/example.test\/blog\/posts\/shared-secret-link.html">/);
+  assert.match(unlisted, /<meta name="twitter:card" content="summary_large_image">/);
   assert.doesNotMatch(unlisted, /misplaced-secret|Private secret|Second private secret/);
   for (const slug of ['misplaced-secret', 'private-secret', 'second-private-secret']) {
     await assert.rejects(readFile(path.join(outDir, 'posts', `${slug}.html`)));

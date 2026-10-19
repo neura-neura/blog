@@ -97,8 +97,18 @@ function renderArticle(post, canonical) {
   const body = renderBody(post);
   const plainText = decodeAttribute(sanitizeHtml(String(post.html || marked.parse(post.markdown || '')).replace(/<[^>]+>/g, ' '), {allowedTags: [], allowedAttributes: {}}));
   const { minutes } = readingStats(plainText);
+  const description=String(post.excerpt||plainText).replace(/\s+/g,' ').trim().slice(0,200);
+  const shareTags=[
+    ['property','og:type','article'],['property','og:title',post.title||'Artículo'],
+    ['property','og:description',description],['property','og:url',canonical],
+    ['property','og:site_name',post.author ? `${post.author} · Blog` : 'Blog'],
+    ['property','og:locale','es_MX'],['name','twitter:card',post.socialImage?'summary_large_image':'summary'],
+    ['name','twitter:title',post.title||'Artículo'],['name','twitter:description',description],
+    ...(post.socialImage ? [['property','og:image',post.socialImage],['property','og:image:alt',post.title||'Portada del artículo'],['name','twitter:image',post.socialImage],['name','twitter:image:alt',post.title||'Portada del artículo']] : []),
+  ].map(([attribute,name,value])=>`<meta ${attribute}="${name}" content="${escapeHtml(value)}">`).join('');
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+${shareTags}
 <title>${title} - Artículos</title><meta name="description" content="${excerpt}"><meta name="reading-time" content="${minutes}"><meta name="article-version" content="${escapeHtml(post.updatedAt||post.publishedAt||'')}"><link rel="canonical" href="${escapeHtml(canonical)}">
 <style>html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-font-smoothing:antialiased}body{margin:0;color:#171717;background:#fff;font:17px/28px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}.wrap{max-width:720px;margin:0 auto;padding:32px 24px 80px}header{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:18px}a{color:inherit}header a{text-decoration:none;font-weight:700}.back{color:#666}article{padding-top:46px;overflow-wrap:anywhere}h1{font-size:34px;font-weight:800;line-height:44px;letter-spacing:normal;margin:12px 0 20px}.meta{color:#777;font-size:14px}.excerpt{font-size:1.2rem;color:#555}.cover{display:block;width:100%;aspect-ratio:5/2;height:auto;object-fit:cover;object-position:center;border-radius:0;margin:22px 0}article img:not(.cover){max-width:100%;height:auto}article a{text-underline-offset:3px}article main h1{font-size:32px;line-height:40px;font-weight:700}article main h2{font-size:26px}article main h3{font-size:21px}article h2,article h3{line-height:1.25;letter-spacing:normal;margin-top:1.7em}article pre,article table{display:block;max-width:100%;overflow-x:auto}article pre{padding:16px;background:#f5f5f5;border-radius:8px;font-size:14px}article blockquote{border-left:3px solid #ddd;margin-left:0;padding-left:20px;color:#666}article video{max-width:100%;height:auto}article audio{max-width:100%}.katex-display{text-align:center;overflow-x:auto;padding:8px 0}.tags{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0}.tags span{background:#f3f3f3;border-radius:99px;padding:3px 10px;font-size:13px;color:#555}footer{border-top:1px solid #eee;margin-top:56px;padding-top:20px;color:#777;font-size:14px}</style><link rel="icon" type="image/svg+xml" href="../favicon.svg"><link rel="stylesheet" href="../appearance.css"><link rel="stylesheet" href="../blog.css"><script type="module" src="../reader-appearance.js"></script></head>
 <body><div class="wrap"><header class="reader-topbar"><a class="reader-back" href="../index.html">${uiIcon('back')}Todos los artículos</a></header><article>${cover}<p class="meta">${minutes} min de lectura &middot; ${date}${author ? ` · <span data-profile="author">${author}</span>` : ''}</p><h1>${title}</h1>${excerpt ? `<p class="excerpt">${excerpt}</p>` : ''}<div class="tags">${tags}</div><main class="prose">${body}</main></article><footer class="reader-author-footer"><div class="reader-author-card"><a class="reader-avatar" href="../index.html" data-profile="initial" aria-label="Ver perfil del autor">${post.authorAvatar?`<img src="${escapeHtml(post.authorAvatar)}" alt="">`:escapeHtml(Array.from(post.author||'')[0]||'')}</a><div class="reader-author-info"><a class="author-card" href="../index.html"><strong data-profile="author">${author}</strong><span class="reader-handle">@<span data-profile="handle">${escapeHtml(post.authorHandle||'')}</span></span></a><p class="reader-author-bio" data-profile="bio">${escapeHtml(post.authorBio||'')}</p></div></div><p class="profile-website" data-profile-website ${post.authorWebsite?'':'hidden'}><a href="${escapeHtml(post.authorWebsite)}" target="_blank" rel="noopener noreferrer">${escapeHtml(post.authorWebsite)}</a></p><nav class="reader-footer-links" aria-label="Suscripciones"><a href="../feed.xml">${uiIcon('rss')}RSS</a></nav></footer></div></body></html>`;
@@ -148,6 +158,22 @@ export async function buildPosts({ postsDir = 'posts', publicPostsDir = process.
   const profile=normalizeProfile({author:posts[0]?.author||'Mi blog',bio:posts[0]?.authorBio||'',handle:new URL(base).hostname.split('.')[0],...savedProfile});
   for(const post of [...posts,...unlistedPosts])Object.assign(post,{author:profile.author,authorBio:profile.bio,authorHandle:profile.handle,authorAvatar:profile.avatar,authorWebsite:profile.website});
   await mkdir(path.join(output, 'posts'), { recursive: true });
+  // Social crawlers need an absolute, fetchable image URL, never a data URI.
+  for(const post of [...posts,...unlistedPosts]){
+    const canonical=`${base}/posts/${encodeURIComponent(post.slug)}.html`;
+    const bodyImage=/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i.exec(renderBody(post))?.[1];
+    const image=safeImageUrl(post.cover)||safeImageUrl(bodyImage?decodeAttribute(bodyImage):'');
+    if(image.startsWith('data:')){
+      const [,format,encoded]=/^data:image\/(png|jpeg|gif|webp);base64,(.+)$/i.exec(image);
+      const bytes=Buffer.from(encoded,'base64');
+      const hash=createHash('sha256').update(bytes).digest('hex').slice(0,16);
+      const filename=`${post.slug}-share-${hash}.${format.toLowerCase()==='jpeg'?'jpg':format.toLowerCase()}`;
+      await writeFile(path.join(output,'posts',filename),bytes);
+      post.socialImage=new URL(filename,canonical).href;
+    }else if(image){
+      try { post.socialImage=new URL(image,canonical).href; } catch { /* Ignore malformed image URLs. */ }
+    }
+  }
   const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src');
   await Promise.all(['appearance.js','appearance.css','pending-article.js','blog.css','blog-index.js','feed-pager.js','feed-card.js','post-order.js','profile.js'].map(file => copyFile(path.join(sourceRoot,file),path.join(output,file))));
   const styleVersion=createHash('sha256').update(await readFile(path.join(sourceRoot,'blog.css'))).update(await readFile(path.join(sourceRoot,'blog-index.js'))).update(await readFile(path.join(sourceRoot,'feed-pager.js'))).update(await readFile(path.join(sourceRoot,'feed-card.js'))).digest('hex').slice(0,12);
